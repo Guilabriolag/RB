@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Pizzaria — v6</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;}
+html,body{width:100%;height:100%;overflow:hidden;background:#121214;color:#e1e1e6;touch-action:none;overscroll-behavior:none;position:fixed;}
+#game-container{position:fixed;inset:0;background:#000;overflow:hidden;}
+#game-container canvas{width:100%;height:100%;display:block;}
+.hud{position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);left:8px;right:8px;display:flex;justify-content:space-between;gap:4px;pointer-events:none;z-index:10;}
+.hud-box{background:rgba(0,0,0,.78);padding:4px 6px;border-radius:8px;border-left:3px solid #e63946;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);min-width:0;flex:1;}
+.hud-box .label{font-size:.5rem;color:#a8a8b3;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;}
+.hud-box .value{font-size:.78rem;color:#e63946;font-weight:bold;line-height:1.1;white-space:nowrap;}
+.hud-box.rep .value{color:#4ade80;}
+.hud-box.time .value.low{color:#f87171;animation:pulse 1s infinite;}
+.top-actions{position:absolute;top:calc(env(safe-area-inset-top,0px) + 58px);left:8px;z-index:20;display:flex;gap:6px;flex-wrap:wrap;max-width:70%;}
+.top-btn{width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.75);border:1px solid rgba(230,57,70,.5);color:#e63946;font-size:1rem;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:pointer;position:relative;}
+.top-btn:active{transform:scale(.9);}
+.top-btn .badge{position:absolute;top:-4px;right:-4px;background:#f87171;color:#fff;font-size:.55rem;font-weight:bold;min-width:16px;height:16px;border-radius:8px;padding:0 4px;display:flex;align-items:center;justify-content:center;}
+.top-btn .badge.new{background:#4ade80;animation:pulse 1s infinite;}
+#cam-btn{position:absolute;top:calc(env(safe-area-inset-top,0px) + 58px);right:8px;z-index:20;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.75);border:1px solid rgba(230,57,70,.5);color:#e63946;font-size:1rem;display:flex;align-items:center;justify-content:center;touch-action:none;cursor:pointer;}
+#cam-btn:active{transform:scale(.9);}
+#weather-badge{position:absolute;top:calc(env(safe-area-inset-top,0px) + 64px);left:50%;transform:translateX(-50%);z-index:12;background:rgba(0,0,0,.85);border:1px solid rgba(230,57,70,.5);padding:4px 10px;border-radius:16px;font-size:.7rem;color:#e63946;font-weight:bold;display:none;align-items:center;gap:5px;white-space:nowrap;max-width:calc(100% - 200px);overflow:hidden;text-overflow:ellipsis;pointer-events:none;}
+#weather-badge.show{display:flex;}
+#day-banner{position:absolute;top:26%;left:50%;transform:translateX(-50%);z-index:40;opacity:0;pointer-events:none;text-align:center;background:rgba(0,0,0,.88);border:2px solid #e63946;border-radius:14px;padding:12px 18px;max-width:88%;}
+#day-banner .t{font-size:1.1rem;color:#e63946;font-weight:bold;}
+#day-banner .e{font-size:.8rem;color:#e1e1e6;margin-top:4px;}
+#day-banner .g{font-size:.72rem;color:#4ade80;margin-top:4px;}
+#day-banner.show{animation:bannerAnim 3.8s ease forwards;}
+@keyframes bannerAnim{0%{opacity:0;transform:translate(-50%,-10px);}10%,80%{opacity:1;transform:translate(-50%,0);}100%{opacity:0;transform:translate(-50%,0);}}
+#joystick-zone{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);left:18px;width:120px;height:120px;z-index:20;touch-action:none;}
+#joystick-base{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgba(230,57,70,.12) 0%,rgba(0,0,0,.5) 70%);border:2px solid rgba(230,57,70,.5);box-shadow:0 0 20px rgba(0,0,0,.6);}
+#joystick-stick{position:absolute;top:50%;left:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff8a95,#e63946 60%,#a8232e);box-shadow:0 4px 12px rgba(0,0,0,.7);pointer-events:none;}
+#action-btn{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 28px);right:20px;width:86px;height:86px;border-radius:50%;z-index:20;background:radial-gradient(circle at 35% 30%,#ff8a95,#e63946 55%,#a8232e);border:3px solid rgba(255,255,255,.25);box-shadow:0 6px 20px rgba(0,0,0,.7),0 0 0 6px rgba(230,57,70,.15);display:flex;align-items:center;justify-content:center;font-size:1.8rem;color:#121214;touch-action:none;cursor:pointer;transition:transform .08s;}
+#action-btn.active{transform:scale(.9);}
+#action-btn.disabled{opacity:.3;filter:grayscale(.8);}
+#action-btn.delivery-mode{background:radial-gradient(circle at 35% 30%,#8ab4ff,#3b82f6 55%,#1e40af);box-shadow:0 6px 20px rgba(0,0,0,.7),0 0 0 6px rgba(59,130,246,.2);}
+#action-btn.waiter-mode{background:radial-gradient(circle at 35% 30%,#a7f3d0,#10b981 55%,#047857);box-shadow:0 6px 20px rgba(0,0,0,.7),0 0 0 6px rgba(16,185,129,.2);}
+#kitchen-panel{position:absolute;bottom:calc(env(safe-area-inset-bottom,0px) + 130px);left:50%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:8px;z-index:25;background:rgba(0,0,0,.9);padding:10px;border-radius:12px;border:1px solid rgba(230,57,70,.4);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);max-width:94vw;}
+#kit-title{font-size:.6rem;color:#a8a8b3;text-transform:uppercase;letter-spacing:.5px;}
+#kit-steps{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;max-width:90vw;}
+#kit-steps .slot{width:36px;height:36px;border-radius:8px;border:2px dashed #555;display:flex;align-items:center;justify-content:center;font-size:1.1rem;opacity:.55;flex-shrink:0;}
+#kit-steps .slot.next{border:2px solid #e63946;opacity:1;animation:pulse 1s infinite;}
+#kit-steps .slot.done{border:2px solid #4ade80;background:rgba(74,222,128,.18);opacity:1;}
+#kit-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+#kitchen-panel .kit-btn{width:56px;height:56px;border-radius:10px;background:linear-gradient(180deg,#3a3a3e,#232326);border:1px solid rgba(230,57,70,.4);color:#e1e1e6;font-size:1.3rem;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;touch-action:none;transition:transform .08s;}
+#kitchen-panel .kit-btn:active{transform:scale(.9);}
+#kitchen-panel .kit-btn .lbl{font-size:.45rem;color:#a8a8b3;margin-top:2px;}
+#kit-cancel{font-size:.65rem;color:#a8a8b3;border:1px solid #555;border-radius:12px;padding:3px 12px;cursor:pointer;touch-action:none;}
+#hint{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 200px);transform:translateX(-50%);background:rgba(230,57,70,.95);color:#121214;padding:7px 16px;border-radius:20px;font-size:.8rem;font-weight:bold;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.5);display:none;z-index:15;pointer-events:none;}
+#order-bubble{position:absolute;top:calc(env(safe-area-inset-top,0px) + 105px);left:50%;transform:translateX(-50%);background:rgba(0,0,0,.9);color:#fff;padding:8px 14px;border-radius:14px;border:2px solid #e63946;display:none;z-index:15;box-shadow:0 6px 20px rgba(0,0,0,.6);max-width:90%;text-align:center;}
+#order-bubble.vip{border-color:#a78bfa;box-shadow:0 6px 20px rgba(167,139,250,.5);}
+#order-bubble.delivery{border-color:#3b82f6;box-shadow:0 6px 20px rgba(59,130,246,.5);}
+#order-bubble.table{border-color:#10b981;box-shadow:0 6px 20px rgba(16,185,129,.5);}
+#order-bubble .ttl{font-size:.6rem;color:#a8a8b3;text-transform:uppercase;letter-spacing:.5px;}
+#order-bubble.vip .ttl{color:#a78bfa;}
+#order-bubble.delivery .ttl{color:#93c5fd;}
+#order-bubble.table .ttl{color:#6ee7b7;}
+#order-bubble .itm{font-size:.9rem;color:#e63946;font-weight:bold;margin-top:2px;}
+#order-bubble.vip .itm{color:#c4b5fd;}
+#order-bubble.delivery .itm{color:#93c5fd;}
+#order-bubble.table .itm{color:#6ee7b7;}
+#order-bubble .prc{font-size:.75rem;color:#4ade80;margin-top:1px;}
+#order-bubble .req{font-size:.62rem;color:#c4c4cc;margin-top:4px;}
+.float-msg{position:absolute;font-weight:bold;font-size:.9rem;text-shadow:0 2px 6px rgba(0,0,0,.9);pointer-events:none;z-index:30;animation:floatUp 1.6s ease-out forwards;white-space:nowrap;}
+.float-msg.gain{color:#4ade80;}
+.float-msg.loss{color:#f87171;}
+.float-msg.info{color:#e63946;}
+.float-msg.vip{color:#a78bfa;}
+.float-msg.delivery{color:#93c5fd;}
+.float-msg.table{color:#6ee7b7;}
+@keyframes floatUp{0%{opacity:1;transform:translate(-50%,0) scale(.8);}30%{opacity:1;transform:translate(-50%,-30px) scale(1.15);}100%{opacity:0;transform:translate(-50%,-90px) scale(1);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+@keyframes popIn{0%{transform:scale(.8);opacity:0;}100%{transform:scale(1);opacity:1;}}
+#tutorial-overlay{position:absolute;inset:0;z-index:105;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:20px;text-align:center;pointer-events:none;}
+#tutorial-overlay.show{display:flex;}
+#tutorial-box{background:rgba(18,18,20,.98);border:2px solid #e63946;border-radius:16px;padding:18px 20px;max-width:340px;box-shadow:0 10px 40px rgba(0,0,0,.8);pointer-events:auto;animation:popIn .3s ease-out;}
+#tutorial-box .ttl{font-size:.65rem;color:#e63946;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+#tutorial-box .msg{font-size:.85rem;color:#e1e1e6;line-height:1.5;margin-bottom:14px;}
+#tutorial-box .msg .k{background:#e63946;color:#121214;font-weight:bold;padding:2px 8px;border-radius:6px;font-size:.75rem;margin:0 2px;display:inline-block;}
+#tutorial-box .row{display:flex;gap:8px;justify-content:center;}
+#tutorial-box button{background:linear-gradient(180deg,#ff8a95,#e63946);color:#121214;border:none;padding:10px 24px;border-radius:30px;font-size:.85rem;font-weight:bold;cursor:pointer;}
+#tutorial-box button.skip{background:transparent;border:1px solid #555;color:#a8a8b3;}
+#tutorial-box button:active{transform:scale(.95);}
+#tutorial-box .progress{display:flex;gap:4px;justify-content:center;margin-bottom:12px;}
+#tutorial-box .dot{width:6px;height:6px;border-radius:50%;background:#333;}
+#tutorial-box .dot.active{background:#e63946;}
+#tutorial-box .dot.done{background:#4ade80;}
+#welcome{position:absolute;inset:0;z-index:100;background:rgba(18,18,20,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;text-align:center;transition:opacity .4s;overflow-y:auto;}
+#welcome h1{color:#e63946;font-size:1.5rem;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}
+#welcome p{color:#a8a8b3;font-size:.78rem;margin-bottom:16px;max-width:340px;line-height:1.5;}
+#welcome .icon{font-size:2.8rem;margin-bottom:8px;}
+#welcome .btn-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+#start-btn,#tutorial-btn{background:linear-gradient(180deg,#ff8a95,#e63946);color:#121214;border:none;padding:14px 32px;border-radius:40px;font-size:.95rem;font-weight:bold;letter-spacing:.5px;box-shadow:0 6px 20px rgba(230,57,70,.4);cursor:pointer;}
+#tutorial-btn{background:transparent;border:2px solid #e63946;color:#e63946;box-shadow:none;}
+#start-btn:active,#tutorial-btn:active{transform:scale(.95);}
+#welcome .tips{margin-top:16px;display:flex;flex-direction:column;gap:6px;font-size:.7rem;color:#c4c4cc;max-width:340px;width:100%;}
+#welcome .tips .tip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);padding:6px 12px;border-radius:8px;}
+#welcome .tips .tip .k{background:#e63946;color:#121214;font-weight:bold;padding:2px 6px;border-radius:4px;font-size:.58rem;white-space:nowrap;}
+#welcome .save-info{margin-top:12px;font-size:.7rem;color:#e63946;}
+#welcome .version{margin-top:16px;font-size:.6rem;color:#555;}
+.modal{position:absolute;inset:0;z-index:110;background:rgba(18,18,20,.96);display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px;text-align:center;overflow-y:auto;}
+.modal.open{display:flex;}
+.modal h2{color:#e63946;font-size:1.2rem;margin-bottom:14px;flex-shrink:0;}
+.modal .stat{display:flex;justify-content:space-between;width:100%;max-width:300px;padding:6px 0;border-bottom:1px solid #29292e;font-size:.83rem;margin:0 auto;}
+.modal .stat .v{color:#4ade80;font-weight:bold;}
+.modal .stat .v.neg{color:#f87171;}
+.modal .stat .v.warn{color:#e63946;}
+.modal button{margin-top:10px;background:linear-gradient(180deg,#ff8a95,#e63946);color:#121214;border:none;padding:12px 32px;border-radius:40px;font-size:.9rem;font-weight:bold;cursor:pointer;}
+.modal button.sec{background:transparent;border:1px solid #e63946;color:#e63946;}
+.modal button:active{transform:scale(.95);}
+.modal .row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px;}
+.modal .content{width:100%;max-width:420px;flex:1;}
+.shop-item,.upgrade-item{background:rgba(255,255,255,.04);border:1px solid #29292e;border-radius:10px;padding:10px 12px;margin-bottom:8px;width:100%;display:flex;align-items:center;gap:10px;text-align:left;}
+.shop-item .ico,.upgrade-item .head .ico{font-size:1.6rem;}
+.shop-item .info{flex:1;min-width:0;}
+.shop-item .name{font-size:.85rem;color:#e1e1e6;font-weight:bold;}
+.shop-item .sub{font-size:.68rem;color:#a8a8b3;margin-top:2px;}
+.shop-item .buy-btn,.upgrade-item .buy-btn{background:linear-gradient(180deg,#ff8a95,#e63946);color:#121214;border:none;border-radius:8px;padding:8px 12px;font-size:.72rem;font-weight:bold;cursor:pointer;min-width:70px;margin-top:0;}
+.shop-item .buy-btn:active,.upgrade-item .buy-btn:active{transform:scale(.95);}
+.shop-item .buy-btn:disabled,.upgrade-item .buy-btn:disabled{opacity:.4;}
+.upgrade-item{display:block;}
+.upgrade-item .head{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.upgrade-item .head .name{font-size:.88rem;color:#e63946;font-weight:bold;flex:1;}
+.upgrade-item .head .lvl{font-size:.68rem;color:#4ade80;font-weight:bold;}
+.upgrade-item .desc{font-size:.7rem;color:#c4c4cc;margin-bottom:8px;line-height:1.4;}
+.upgrade-item .foot{display:flex;justify-content:space-between;align-items:center;}
+.upgrade-item .price{font-size:.78rem;color:#e63946;font-weight:bold;}
+.tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;justify-content:center;}
+.tab{padding:8px 12px;border-radius:20px;font-size:.68rem;font-weight:bold;background:rgba(255,255,255,.05);color:#a8a8b3;border:1px solid #29292e;cursor:pointer;}
+.tab.active{background:#e63946;color:#121214;border-color:#e63946;}
+.ach-item{background:rgba(255,255,255,.04);border:1px solid #29292e;border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;text-align:left;}
+.ach-item.unlocked{border-color:#ffd700;background:rgba(255,215,0,.08);}
+.ach-item .ico{font-size:1.6rem;filter:grayscale(1);opacity:.4;}
+.ach-item.unlocked .ico{filter:none;opacity:1;}
+.ach-item .info{flex:1;}
+.ach-item .name{font-size:.83rem;color:#e1e1e6;font-weight:bold;}
+.ach-item.unlocked .name{color:#ffd700;}
+.ach-item .desc{font-size:.68rem;color:#a8a8b3;margin-top:2px;}
+.stat-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #29292e;font-size:.83rem;}
+.stat-row .lbl{color:#a8a8b3;}
+.stat-row .val{color:#e63946;font-weight:bold;}
+/* Notificação de chamada */
+.call-alert{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:50;pointer-events:none;font-size:2rem;animation:callPulse 1s infinite;text-shadow:0 0 20px rgba(255,255,255,.8);}
+@keyframes callPulse{0%,100%{opacity:1;transform:translate(-50%,-50%) scale(1);}50%{opacity:.6;transform:translate(-50%,-50%) scale(1.3);}}
+.notif-badge{position:absolute;top:calc(env(safe-area-inset-top,0px) + 105px);right:10px;background:#f87171;color:#fff;padding:6px 10px;border-radius:20px;font-size:.7rem;font-weight:bold;z-index:18;display:none;align-items:center;gap:5px;animation:pulse 1.2s infinite;pointer-events:none;}
+.notif-badge.show{display:flex;}
+#delivery-bar{position:absolute;top:calc(env(safe-area-inset-top,0px) + 130px);left:8px;right:8px;z-index:14;display:none;flex-direction:column;gap:4px;pointer-events:none;max-width:220px;}
+.delivery-item{background:rgba(30,64,175,.85);border:1px solid #3b82f6;border-radius:10px;padding:6px 10px;font-size:.68rem;color:#e1e1e6;display:flex;justify-content:space-between;align-items:center;gap:8px;backdrop-filter:blur(6px);}
+.delivery-item .tm{color:#93c5fd;font-weight:bold;}
+.delivery-item.late{border-color:#f87171;background:rgba(127,29,29,.85);}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+<div id="game-container">
+  <div class="hud">
+    <div class="hud-box"><div class="label">💰 Dinheiro</div><div class="value" id="hud-money">R$ 100</div></div>
+    <div class="hud-box rep"><div class="label">⭐ Rep</div><div class="value" id="hud-rep">50</div></div>
+    <div class="hud-box"><div class="label">👥 Atend.</div><div class="value" id="hud-served">0</div></div>
+    <div class="hud-box"><div class="label">🎯 Meta</div><div class="value" id="hud-goal">R$ 160</div></div>
+    <div class="hud-box time"><div class="label">⏱ Tempo</div><div class="value" id="hud-time">3:00</div></div>
+  </div>
+
+  <div id="weather-badge"><span id="weather-icon">☀️</span><span id="weather-text">Dia normal</span></div>
+  <div id="day-banner"></div>
+  <div class="notif-badge" id="notif-badge">🔔 <span id="notif-text">Cliente chamando</span></div>
+  <div id="delivery-bar"></div>
+
+  <div class="top-actions">
+    <div class="top-btn" id="menu-btn">☰</div>
+    <div class="top-btn" id="shop-btn">🛒<span class="badge" id="stock-badge" style="display:none">!</span></div>
+    <div class="top-btn" id="ach-btn">🏆<span class="badge new" id="ach-badge" style="display:none">!</span></div>
+    <div class="top-btn" id="call-btn">🔔<span class="badge" id="call-badge" style="display:none">0</span></div>
+  </div>
+
+  <div id="cam-btn">🎥</div>
+
+  <div id="order-bubble">
+    <div class="ttl">Pedido</div>
+    <div class="itm" id="order-item">Pizza</div>
+    <div class="prc" id="order-price">R$ 25,00</div>
+    <div class="req" id="order-req"></div>
+  </div>
+
+  <div id="joystick-zone">
+    <div id="joystick-base"></div>
+    <div id="joystick-stick"></div>
+  </div>
+
+  <div id="kitchen-panel">
+    <div id="kit-title">Monte a pizza na ordem</div>
+    <div id="kit-steps"></div>
+    <div id="kit-btns"></div>
+    <div id="kit-cancel">✖ Cancelar</div>
+  </div>
+
+  <div id="action-btn">🍕</div>
+  <div id="hint">Aproxime-se do cliente</div>
+
+  <div id="tutorial-overlay">
+    <div id="tutorial-box">
+      <div class="progress" id="tutorial-progress"></div>
+      <div class="ttl" id="tutorial-ttl">Passo 1</div>
+      <div class="msg" id="tutorial-msg">Bem-vindo à Pizzaria!</div>
+      <div class="row">
+        <button class="skip" id="tutorial-skip">Pular</button>
+        <button id="tutorial-next">Continuar ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="welcome">
+    <div class="icon">🍕👑</div>
+    <h1>Pizzaria</h1>
+    <p>Simulador de dono de pizzaria. Salão, cozinha, atendimento, copa e delivery — cada expediente tem tempo e meta.</p>
+    <div class="btn-row">
+      <button id="start-btn">▶ JOGAR</button>
+      <button id="tutorial-btn">📖 TUTORIAL</button>
+    </div>
+    <div class="tips">
+      <div class="tip"><span class="k">JOYSTICK</span> Mover o personagem</div>
+      <div class="tip"><span class="k">ARRASTE</span> Girar a câmera</div>
+      <div class="tip"><span class="k">🍕</span> Atender / Cozinhar</div>
+      <div class="tip"><span class="k">🔔</span> Notificações de chamada</div>
+      <div class="tip"><span class="k">🛒</span> Estoque, upgrades, equipe</div>
+      <div class="tip"><span class="k">🏆</span> Conquistas e estatísticas</div>
+    </div>
+    <div class="save-info" id="save-info"></div>
+    <div class="version">v6.0</div>
+  </div>
+
+  <div class="modal" id="menu-modal">
+    <h2>📋 Menu</h2>
+    <div class="content">
+      <div class="stat"><span>Dia</span><span class="v" id="menu-day">1</span></div>
+      <div class="stat"><span>Tempo restante</span><span class="v" id="menu-time">3:00</span></div>
+      <div class="stat"><span>Dinheiro</span><span class="v" id="menu-money">R$ 100,00</span></div>
+      <div class="stat"><span>Reputação</span><span class="v" id="menu-rep">50</span></div>
+      <div class="stat"><span>Atendidos hoje</span><span class="v" id="menu-served">0</span></div>
+      <div class="stat"><span>Meta do dia</span><span class="v warn" id="menu-goal">R$ 160,00</span></div>
+      <div class="stat"><span>Ganho hoje</span><span class="v" id="menu-earned">R$ 0,00</span></div>
+      <div class="stat"><span>Evento do dia</span><span class="v" id="menu-event">☀️ Normal</span></div>
+      <div class="stat"><span>Entregas pendentes</span><span class="v" id="menu-deliveries">0</span></div>
+    </div>
+    <div class="row">
+      <button class="sec" id="menu-resume">▶ Continuar</button>
+      <button class="sec" id="menu-stats">📊 Estatísticas</button>
+    </div>
+    <div class="row">
+      <button class="sec" id="menu-end">⏹ Encerrar expediente</button>
+      <button class="sec" id="menu-restart">🔄 Reiniciar dia</button>
+    </div>
+  </div>
+
+  <div class="modal" id="shop-modal">
+    <h2>🛒 Loja</h2>
+    <div class="tabs">
+      <div class="tab active" data-tab="stock">Estoque</div>
+      <div class="tab" data-tab="upgrade">Upgrades</div>
+      <div class="tab" data-tab="staff">Equipe</div>
+    </div>
+    <div class="content">
+      <div id="shop-tab-stock"></div>
+      <div id="shop-tab-upgrade" style="display:none"></div>
+      <div id="shop-tab-staff" style="display:none"></div>
+    </div>
+    <button class="sec" id="shop-close" style="margin-top:16px;">Fechar</button>
+  </div>
+
+  <div class="modal" id="ach-modal">
+    <h2>🏆 Conquistas</h2>
+    <div class="content" id="ach-list"></div>
+    <button class="sec" id="ach-close" style="margin-top:16px;">Fechar</button>
+  </div>
+
+  <div class="modal" id="stats-modal">
+    <h2>📊 Estatísticas</h2>
+    <div class="content" id="stats-content"></div>
+    <button class="sec" id="stats-close" style="margin-top:16px;">Fechar</button>
+  </div>
+
+  <div class="modal" id="end-day">
+    <h2>🌙 Fim do Expediente</h2>
+    <div class="content">
+      <div class="stat"><span>Clientes atendidos</span><span class="v" id="end-served">0</span></div>
+      <div class="stat"><span>Ganhos brutos</span><span class="v" id="end-earned">R$ 0,00</span></div>
+      <div class="stat"><span>Custos de estoque</span><span class="v neg" id="end-costs">R$ 0,00</span></div>
+      <div class="stat"><span>Perdas (desistências)</span><span class="v neg" id="end-lost">R$ 0,00</span></div>
+      <div class="stat"><span>Lucro do dia</span><span class="v" id="end-profit">R$ 0,00</span></div>
+      <div class="stat"><span>Meta</span><span class="v" id="end-goal-status">✅</span></div>
+      <div class="stat"><span>Reputação</span><span class="v" id="end-rep">50</span></div>
+      <div id="end-bonus" style="color:#4ade80;font-size:.85rem;margin-top:10px;display:none"></div>
+      <div id="end-event-info" style="color:#e63946;font-size:.75rem;margin-top:8px;"></div>
+    </div>
+    <button id="next-day-btn" style="margin-top:18px;">▶ PRÓXIMO DIA</button>
+  </div>
+
+  <div class="modal" id="game-over">
+    <h2 style="color:#f87171">💔 Falência!</h2>
+    <p style="color:#c4c4cc;margin-bottom:14px;font-size:.85rem;">Você ficou sem dinheiro e sem estoque. A Pizzaria fechou as portas.</p>
+    <div class="content">
+      <div class="stat"><span>Dias sobrevividos</span><span class="v" id="go-days">1</span></div>
+      <div class="stat"><span>Total de clientes</span><span class="v" id="go-served">0</span></div>
+      <div class="stat"><span>Dinheiro final</span><span class="v" id="go-money">R$ 0,00</span></div>
+    </div>
+    <button id="restart-all-btn" style="margin-top:18px;">🔄 RECOMEÇAR</button>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   UTIL
+===================================================================== */
+const SAVE_KEY='pizzaria_save_v6';
+const OLD_KEY='pizzaria_save_v5';
+const fmt=v=>'R$ '+v.toFixed(2).replace('.',',');
+const fmtTime=t=>{t=Math.max(0,Math.ceil(t));return Math.floor(t/60)+':'+String(t%60).padStart(2,'0');};
+const rand=(a,b)=>a+Math.random()*(b-a);
+const pick=arr=>arr[Math.floor(Math.random()*arr.length)];
+
+function defaultState(){
+  return {
+    phase:'menu',day:1,money:150,reputation:50,
+    served:0,totalServed:0,earned:0,costs:0,lost:0,spent:0,
+    goal:160,lostClients:0,totalLost:0,bonusPaid:false,goalHit:false,
+    tutorialDone:false,eventId:'normal',difficulty:1,
+    timeLeft:180,shiftLength:180,inShift:false,shiftDone:false,snap:null,
+    totalDeliveries:0,totalTablesServed:0
+  };
+}
+
+/* =====================================================================
+   INGREDIENTES E SABORES
+===================================================================== */
+// Cada ingrediente tem um ícone. A pizza é montada em ordem: massa → molho → queijo → toppings específicos
+const ING = {
+  massa:{icon:'🫓',name:'Massa',price:3},
+  molho:{icon:'🍅',name:'Molho',price:2},
+  queijo:{icon:'🧀',name:'Queijo',price:3},
+  mussarela:{icon:'🧀',name:'Mussarela',price:3},
+  calabresa:{icon:'🌶️',name:'Calabresa',price:4},
+  frango:{icon:'🍗',name:'Frango',price:5},
+  catupiry:{icon:'🥛',name:'Catupiry',price:4},
+  pepperoni:{icon:'🍖',name:'Pepperoni',price:5},
+  bacon:{icon:'🥓',name:'Bacon',price:5},
+  brocolis:{icon:'🥦',name:'Brócolis',price:4},
+  atum:{icon:'🐟',name:'Atum',price:5},
+  alho:{icon:'🧄',name:'Alho',price:3},
+  cebola:{icon:'🧅',name:'Cebola',price:3},
+  tomate:{icon:'🍅',name:'Tomate',price:3},
+  azeitona:{icon:'🫒',name:'Azeitona',price:3},
+  ovo:{icon:'🥚',name:'Ovo',price:3},
+  presunto:{icon:'🍖',name:'Presunto',price:4},
+  palmito:{icon:'🌴',name:'Palmito',price:4},
+  milho:{icon:'🌽',name:'Milho',price:3}
+};
+
+// Sabores: cada sabor é composto pela base (massa,molho,queijo) + toppings
+// Receita final = ['massa','molho',...toppings]
+const SABORES = {
+  mussarela:  {name:'Mussarela',            base:25, toppings:['mussarela','tomate','azeitona']},
+  marguerita: {name:'Marguerita',           base:28, toppings:['mussarela','tomate']},
+  calabresa:  {name:'Calabresa',            base:30, toppings:['calabresa','cebola']},
+  frango_cat: {name:'Frango c/ Catupiry',   base:38, toppings:['frango','catupiry']},
+  pepperoni:  {name:'Pepperoni',            base:35, toppings:['pepperoni']},
+  bacon:      {name:'Bacon',                base:36, toppings:['bacon','cebola']},
+  brocolis:   {name:'Brócolis',             base:34, toppings:['brocolis','alho']},
+  atum:       {name:'Atum',                 base:36, toppings:['atum','cebola']},
+  romana:     {name:'Romana',               base:32, toppings:['presunto','mussarela','tomate']},
+  alho:       {name:'Alho e Óleo',          base:28, toppings:['alho','mussarela']},
+  portuguesa: {name:'Portuguesa',           base:38, toppings:['presunto','ovo','cebola','azeitona']},
+  palmito:    {name:'Palmito',              base:36, toppings:['palmito','mussarela']},
+  milho:      {name:'Milho c/ Catupiry',    base:36, toppings:['milho','catupiry']}
+};
+
+const SABOR_IDS = Object.keys(SABORES);
+
+function buildRecipe(saborId){
+  const s = SABORES[saborId];
+  return ['massa','molho',...s.toppings];
+}
+function buildHalfRecipe(idA,idB){
+  // meia-meia: massa, molho, metade de A, metade de B — representado em sequência
+  const a = SABORES[idA].toppings;
+  const b = SABORES[idB].toppings;
+  // pega metade de cada (mínimo 1, máximo 2)
+  const halfA = a.slice(0,Math.max(1,Math.ceil(a.length/2)));
+  const halfB = b.slice(0,Math.max(1,Math.ceil(b.length/2)));
+  return {steps:['massa','molho',...halfA,...halfB], half:{a:idA,b:idB,toppingsA:halfA,toppingsB:halfB}};
+}
+function saborPrice(saborId){ return SABORES[saborId].base; }
+
+/* =====================================================================
+   GAME
+===================================================================== */
+const Game = {
+  state: defaultState(),
+  // Estoque: agora mais ingredientes
+  stock: {massa:10,molho:10,queijo:5,mussarela:5,calabresa:5,frango:5,catupiry:5,pepperoni:5,bacon:5,brocolis:5,atum:5,alho:5,cebola:5,tomate:5,azeitona:5,ovo:5,presunto:5,palmito:5,milho:5},
+  upgrades: {forno:0,freezer:0,caixa:0,marketing:0,bancada:0,copa:0},
+  staff: {pizzaiolo:0,atendente:0,garcom:0,entregador:0},
+  stats: {autoServed:0,autoCooked:0,totalEarned:0,totalSpent:0,daysPlayed:0,perfectDays:0,bestDay:0,vipServed:0,deliveries:0,tablesServed:0,halfPizzas:0},
+  achievements: {
+    first_sale:{name:'Primeira Venda',desc:'Sirva seu primeiro cliente',icon:'🍕',unlocked:false},
+    day_3:{name:'Sobrevivente',desc:'Chegue ao dia 3',icon:'📅',unlocked:false},
+    day_7:{name:'Semana de Ouro',desc:'Chegue ao dia 7',icon:'🥇',unlocked:false},
+    money_500:{name:'Bolsos Cheios',desc:'Acumule R$ 500',icon:'💰',unlocked:false},
+    money_1000:{name:'Empresário',desc:'Acumule R$ 1.000',icon:'💎',unlocked:false},
+    rep_100:{name:'Fama Total',desc:'Alcance 100 de reputação',icon:'⭐',unlocked:false},
+    perfect_day:{name:'Dia Perfeito',desc:'Termine um dia sem perder clientes',icon:'✨',unlocked:false},
+    vip_10:{name:'Atendimento VIP',desc:'Sirva 10 clientes VIP',icon:'👑',unlocked:false},
+    upgrade_max:{name:'Tecnologia Total',desc:'Maximize um upgrade',icon:'🔧',unlocked:false},
+    staff_full:{name:'Grande Equipe',desc:'Contrate equipe completa (todos os cargos)',icon:'👥',unlocked:false},
+    served_50:{name:'50 Clientes',desc:'Atenda 50 clientes no total',icon:'🎯',unlocked:false},
+    first_delivery:{name:'Motoboy',desc:'Faça a primeira entrega',icon:'🛵',unlocked:false},
+    delivery_20:{name:'Delivery Master',desc:'Faça 20 entregas',icon:'📦',unlocked:false},
+    first_half:{name:'Meio a Meio',desc:'Sirva uma pizza meio a meio',icon:'🌓',unlocked:false},
+    first_table:{name:'Garçom',desc:'Atenda uma mesa',icon:'🍽️',unlocked:false},
+    table_30:{name:'Salão Cheio',desc:'Atenda 30 mesas',icon:'🪑',unlocked:false}
+  },
+  uiOpen:false,
+  prices: {
+    massa:3,molho:2,queijo:3,mussarela:3,calabresa:4,frango:5,catupiry:4,
+    pepperoni:5,bacon:5,brocolis:4,atum:5,alho:3,cebola:3,tomate:3,
+    azeitona:3,ovo:3,presunto:4,palmito:4,milho:3
+  },
+
+  getEvent(){ return Events.byId(this.state.eventId); },
+
+  save(){
+    try{
+      localStorage.setItem(SAVE_KEY,JSON.stringify({
+        state:this.state,stock:this.stock,upgrades:this.upgrades,
+        staff:this.staff,stats:this.stats,achievements:this.achievements
+      }));
+    }catch(e){}
+  },
+  load(){
+    try{
+      let raw=localStorage.getItem(SAVE_KEY)||localStorage.getItem(OLD_KEY);
+      if(!raw) return false;
+      const d=JSON.parse(raw);
+      if(d.state) Object.assign(this.state,d.state);
+      if(d.stock) Object.assign(this.stock,d.stock);
+      if(d.upgrades) Object.assign(this.upgrades,d.upgrades);
+      if(d.staff){ Object.assign(this.staff,d.staff); if(this.staff.garcom===undefined)this.staff.garcom=0; if(this.staff.entregador===undefined)this.staff.entregador=0; }
+      if(d.stats) Object.assign(this.stats,d.stats);
+      if(d.achievements) Object.assign(this.achievements,d.achievements);
+      if(typeof this.state.timeLeft!=='number'||isNaN(this.state.timeLeft)) this.state.timeLeft=180;
+      this.state.phase='menu';
+      return true;
+    }catch(e){return false;}
+  },
+  reset(){
+    try{localStorage.removeItem(SAVE_KEY);localStorage.removeItem(OLD_KEY);}catch(e){}
+    this.state=defaultState();
+    this.stock={massa:10,molho:10,queijo:5,mussarela:5,calabresa:5,frango:5,catupiry:5,pepperoni:5,bacon:5,brocolis:5,atum:5,alho:5,cebola:5,tomate:5,azeitona:5,ovo:5,presunto:5,palmito:5,milho:5};
+    this.upgrades={forno:0,freezer:0,caixa:0,marketing:0,bancada:0,copa:0};
+    this.staff={pizzaiolo:0,atendente:0,garcom:0,entregador:0};
+    this.stats={autoServed:0,autoCooked:0,totalEarned:0,totalSpent:0,daysPlayed:0,perfectDays:0,bestDay:0,vipServed:0,deliveries:0,tablesServed:0,halfPizzas:0};
+    Object.keys(this.achievements).forEach(k=>this.achievements[k].unlocked=false);
+  },
+
+  startShift(){
+    const s=this.state;
+    s.phase='playing';
+    s.earned=0;s.costs=0;s.lost=0;s.spent=0;
+    s.lostClients=0;s.served=0;s.bonusPaid=false;s.goalHit=false;
+    s.difficulty=1+(s.day-1)*0.08;
+    s.goal=Math.round(150+(s.day-1)*100+Math.pow(s.day,1.3)*10);
+    s.shiftLength=180+Math.min(s.day-1,6)*10;
+    s.timeLeft=s.shiftLength;
+    s.eventId=Events.rollForDay(s.day).id;
+    s.inShift=true;s.shiftDone=false;
+    s.snap={money:s.money,reputation:s.reputation,stock:Object.assign({},this.stock),upgrades:Object.assign({},this.upgrades),staff:Object.assign({},this.staff)};
+    this.stats.daysPlayed++;
+    beginShiftUI();
+    this.save();
+  },
+  resumeShift(){ this.state.phase='playing'; beginShiftUI(); },
+  restartDay(){
+    const s=this.state;
+    if(!s.inShift||!s.snap) return;
+    cancelCooking();clearClients();clearTables();clearDeliveries();
+    this.stats.totalEarned-=s.earned;this.stats.totalSpent-=s.spent;
+    s.totalServed-=s.served;s.totalLost-=s.lostClients;
+    s.money=s.snap.money;s.reputation=s.snap.reputation;
+    Object.assign(this.stock,s.snap.stock);
+    Object.assign(this.upgrades,s.snap.upgrades);
+    Object.assign(this.staff,s.snap.staff);
+    s.earned=0;s.costs=0;s.lost=0;s.spent=0;
+    s.lostClients=0;s.served=0;s.bonusPaid=false;s.goalHit=false;
+    s.timeLeft=s.shiftLength;s.phase='playing';
+    beginShiftUI();this.save();
+  },
+  endShift(){
+    const s=this.state;
+    if(s.phase!=='playing'&&s.phase!=='cooking') return;
+    cancelCooking();
+    s.phase='endday';s.inShift=false;s.shiftDone=true;
+    if(s.lostClients===0&&s.served>0){this.stats.perfectDays++;this.unlockAchievement('perfect_day');}
+    if(s.served>this.stats.bestDay) this.stats.bestDay=s.served;
+    const profit=s.earned-s.costs-s.lost;
+    const bEl=document.getElementById('end-bonus');
+    if(s.earned>=s.goal&&!s.bonusPaid){
+      const bonus=Math.round(s.goal*0.2);
+      s.money+=bonus;s.bonusPaid=true;
+      bEl.style.display='block';bEl.textContent='🎉 Meta batida! Bônus: +R$ '+bonus;
+    } else bEl.style.display='none';
+    document.getElementById('end-served').textContent=s.served;
+    document.getElementById('end-earned').textContent=fmt(s.earned);
+    document.getElementById('end-costs').textContent=fmt(s.costs);
+    document.getElementById('end-lost').textContent=fmt(s.lost);
+    const pEl=document.getElementById('end-profit');
+    pEl.textContent=fmt(profit);pEl.className='v'+(profit<0?' neg':'');
+    document.getElementById('end-goal-status').textContent=s.earned>=s.goal?'✅ Batida':'❌ Não batida';
+    document.getElementById('end-rep').textContent=Math.round(s.reputation);
+    const ev=this.getEvent();
+    document.getElementById('end-event-info').textContent=ev.id==='normal'?'':ev.icon+' '+ev.name+' — '+ev.desc;
+    if(s.day>=3) this.unlockAchievement('day_3');
+    if(s.day>=7) this.unlockAchievement('day_7');
+    if(s.money>=500) this.unlockAchievement('money_500');
+    if(s.money>=1000) this.unlockAchievement('money_1000');
+    if(s.reputation>=100) this.unlockAchievement('rep_100');
+    if(s.totalServed>=50) this.unlockAchievement('served_50');
+    updateHUD();
+    openModal('end-day');
+    this.save();
+  },
+  nextDay(){
+    let total=0;for(const k in this.stock) total+=this.stock[k];
+    if(this.state.money<10&&total<2){
+      this.state.phase='gameover';closeModal('end-day');
+      document.getElementById('go-days').textContent=this.state.day;
+      document.getElementById('go-served').textContent=this.state.totalServed;
+      document.getElementById('go-money').textContent=fmt(this.state.money);
+      openModal('game-over');return;
+    }
+    this.state.day++;closeModal('end-day');clearClients();clearTables();clearDeliveries();this.startShift();
+  },
+  restartAll(){
+    this.reset();clearClients();clearTables();clearDeliveries();closeModal('game-over');
+    const w=document.getElementById('welcome');w.style.display='flex';w.style.opacity='1';
+    refreshWelcome();updateHUD();updateStockBadge();updateAchBadge();updateWeatherBadge();applyEnv();
+  },
+
+  addMoney(v){
+    const s=this.state;
+    s.money+=v;s.earned+=v;this.stats.totalEarned+=v;
+    if(!s.goalHit&&s.earned>=s.goal){
+      s.goalHit=true;
+      showBanner('<div class="t">🎯 Meta batida!</div><div class="g">Continue vendendo até o fim do expediente.</div>');
+    }
+    updateHUD();
+  },
+  loseMoney(v){this.state.money=Math.max(0,this.state.money-v);this.state.lost+=v;updateHUD();},
+  spendMoney(v,invest){
+    const s=this.state;
+    s.money=Math.max(0,s.money-v);
+    s.spent+=v;this.stats.totalSpent+=v;
+    if(!invest) s.costs+=v;
+    updateHUD();
+  },
+  addReputation(v){this.state.reputation=Math.max(0,Math.min(100,this.state.reputation+v));updateHUD();},
+  unlockAchievement(id){
+    const a=this.achievements[id];
+    if(!a||a.unlocked) return;
+    a.unlocked=true;showAchievementToast(a);updateAchBadge();this.save();
+  },
+  getStockCapacity(){return 20+this.upgrades.freezer*10;},
+  hasStock(steps){
+    const need={};
+    steps.forEach(s=>need[s]=(need[s]||0)+1);
+    for(const k in need) if((this.stock[k]||0)<need[k]) return false;
+    return true;
+  },
+  consumeStock(steps){
+    steps.forEach(s=>{this.stock[s]=Math.max(0,(this.stock[s]||0)-1);});
+    updateStockBadge();
+  },
+  addStock(item,qty){
+    this.stock[item]=Math.min(this.getStockCapacity(),(this.stock[item]||0)+qty);
+    updateStockBadge();
+  }
+};
+
+/* =====================================================================
+   EVENTOS
+===================================================================== */
+const Events = {
+  list: [
+    {id:'normal',icon:'☀️',name:'Dia Normal',desc:'Sem modificadores.',spawnMult:1.0,priceMult:1.0,patienceMult:1.0,weight:40,env:{sun:0.9,sunColor:0xfff5e6,bg:0x121214,amb:0.5}},
+    {id:'rain',icon:'🌧️',name:'Chuva',desc:'Mais delivery, menos salão.',spawnMult:1.2,priceMult:1.1,patienceMult:1.0,weight:15,deliveryBoost:2,env:{sun:0.5,sunColor:0x99aacc,bg:0x1a1f2e,amb:0.35}},
+    {id:'sunny',icon:'🌞',name:'Dia Quente',desc:'Muitos clientes, paciência menor.',spawnMult:0.7,priceMult:0.9,patienceMult:0.7,weight:15,env:{sun:1.2,sunColor:0xffe8b0,bg:0x1a1410,amb:0.65}},
+    {id:'game_day',icon:'⚽',name:'Dia de Jogo',desc:'Filas enormes, mais clientes por vez.',spawnMult:0.5,priceMult:1.0,patienceMult:0.9,weight:10,maxClients:2,env:{sun:0.95,sunColor:0xa0ffb0,bg:0x102018,amb:0.55}},
+    {id:'festival',icon:'🎉',name:'Festival',desc:'Clientes pagam 50% a mais!',spawnMult:0.8,priceMult:1.5,patienceMult:1.0,weight:8,env:{sun:1.0,sunColor:0xffd0ff,bg:0x201020,amb:0.6}},
+    {id:'health_day',icon:'🥗',name:'Dia Saudável',desc:'Pizzas veganas valem o dobro.',spawnMult:1.0,priceMult:1.0,patienceMult:0.8,weight:7,special:'vegana',env:{sun:0.95,sunColor:0xd0ffd0,bg:0x101a10,amb:0.55}},
+    {id:'vip_day',icon:'👑',name:'Dia VIP',desc:'Muitos clientes VIP aparecem.',spawnMult:0.9,priceMult:1.3,patienceMult:0.9,weight:5,vipChance:0.4,env:{sun:0.9,sunColor:0xd0b0ff,bg:0x1a1028,amb:0.55}}
+  ],
+  byId(id){return this.list.find(e=>e.id===id)||this.list[0];},
+  rollForDay(day){
+    if(day<=1) return this.list[0];
+    const total=this.list.reduce((s,e)=>s+e.weight,0);
+    let r=Math.random()*total;
+    for(const e of this.list){r-=e.weight;if(r<=0)return e;}
+    return this.list[0];
+  }
+};
+
+/* =====================================================================
+   COLISÃO
+===================================================================== */
+const Collision = {
+  circles:[],boxes:[],
+  addCircle(x,z,r,owner){const c={x,z,r,owner};this.circles.push(c);return c;},
+  addBox(minX,maxX,minZ,maxZ,owner){this.boxes.push({minX,maxX,minZ,maxZ,owner});},
+  resolvePlayer(px,pz,pr){
+    let nx=px,nz=pz;
+    for(const b of this.boxes){
+      const cx=Math.max(b.minX,Math.min(nx,b.maxX));
+      const cz=Math.max(b.minZ,Math.min(nz,b.maxZ));
+      const dx=nx-cx,dz=nz-cz,d2=dx*dx+dz*dz;
+      if(d2<pr*pr&&d2>0.0001){const d=Math.sqrt(d2);nx+=(dx/d)*(pr-d);nz+=(dz/d)*(pr-d);}
+    }
+    for(const c of this.circles){
+      const dx=nx-c.x,dz=nz-c.z,d2=dx*dx+dz*dz,minD=pr+c.r;
+      if(d2<minD*minD&&d2>0.0001){const d=Math.sqrt(d2);nx+=(dx/d)*(minD-d);nz+=(dz/d)*(minD-d);}
+    }
+    return {x:nx,z:nz};
+  }
+};
+
+/* =====================================================================
+   CENA 3D — Restaurante completo
+   Layout:
+     Z negativo = fundo (cozinha / forno / bancada)
+     Z 0 = balcão central
+     Z positivo = salão com mesas
+===================================================================== */
+const container=document.getElementById('game-container');
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x121214);
+scene.fog=new THREE.Fog(0x121214,22,55);
+
+const camera=new THREE.PerspectiveCamera(55,window.innerWidth/window.innerHeight,0.1,1000);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+const ambientLight=new THREE.AmbientLight(0xffffff,0.5);scene.add(ambientLight);
+const sunLight=new THREE.DirectionalLight(0xfff5e6,0.9);
+sunLight.position.set(10,20,10);sunLight.castShadow=true;
+sunLight.shadow.mapSize.width=1024;sunLight.shadow.mapSize.height=1024;
+sunLight.shadow.camera.left=-20;sunLight.shadow.camera.right=20;
+sunLight.shadow.camera.top=20;sunLight.shadow.camera.bottom=-20;
+scene.add(sunLight);
+const warmLight=new THREE.PointLight(0xffaa33,1.8,18);
+warmLight.position.set(0,3,2.5);scene.add(warmLight);
+const kitchenLight=new THREE.PointLight(0xff6633,1.2,10);
+kitchenLight.position.set(0,2.5,-4);scene.add(kitchenLight);
+
+function applyEnv(){
+  const e=Game.getEvent().env;
+  sunLight.intensity=e.sun;sunLight.color.setHex(e.sunColor);
+  scene.background.setHex(e.bg);scene.fog.color.setHex(e.bg);
+  ambientLight.intensity=e.amb;
+}
+
+// Chão
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(50,50),new THREE.MeshStandardMaterial({color:0x1e1e22,roughness:0.9}));
+floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+const grid=new THREE.GridHelper(50,50,0xe63946,0x333333);
+grid.position.y=0.01;scene.add(grid);
+
+// Materiais
+const matBlack=new THREE.MeshStandardMaterial({color:0x151515,roughness:0.5});
+const matRed=new THREE.MeshStandardMaterial({color:0xe63946,roughness:0.3});
+const matInox=new THREE.MeshStandardMaterial({color:0xd0d5dd,metalness:0.8,roughness:0.2});
+const matWood=new THREE.MeshStandardMaterial({color:0x6b4423,roughness:0.7});
+const matFloor=new THREE.MeshStandardMaterial({color:0x3a2418,roughness:0.85});
+
+/* ====== COZINHA (fundo, Z negativo) ====== */
+const kitchen=new THREE.Group();
+// Bancada do pizzaiolo (grande, comprida)
+const bancada=new THREE.Mesh(new THREE.BoxGeometry(6,0.9,1.2),matInox);
+bancada.position.set(0,0.45,-3.5);bancada.castShadow=true;bancada.receiveShadow=true;kitchen.add(bancada);
+const bancadaTop=new THREE.Mesh(new THREE.BoxGeometry(6.2,0.08,1.3),matRed);
+bancadaTop.position.set(0,0.94,-3.5);bancadaTop.castShadow=true;kitchen.add(bancadaTop);
+// Forno grande
+const forno=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.6,1.2),matBlack);
+forno.position.set(-3.5,0.8,-4.5);forno.castShadow=true;kitchen.add(forno);
+const fornoBoca=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.6,0.1),new THREE.MeshStandardMaterial({color:0xff6600,emissive:0xff3300,emissiveIntensity:0.8}));
+fornoBoca.position.set(-3.5,0.8,-3.89);kitchen.add(fornoBoca);
+const fornoBoca2=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.08,0.1),new THREE.MeshStandardMaterial({color:0xffaa00,emissive:0xff6600,emissiveIntensity:0.9}));
+fornoBoca2.position.set(-3.5,1.35,-3.89);kitchen.add(fornoBoca2);
+// Forno 2 (com upgrade)
+const forno2=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.6,1.2),matBlack);
+forno2.position.set(3.5,0.8,-4.5);forno2.castShadow=true;forno2.visible=false;kitchen.add(forno2);
+// Bancada do pizzaiolo 2 (upgrade)
+const bancada2=new THREE.Mesh(new THREE.BoxGeometry(2.5,0.9,1.2),matInox);
+bancada2.position.set(3.5,0.45,-3.5);bancada2.castShadow=true;bancada2.visible=false;kitchen.add(bancada2);
+// Prateleiras
+for(let i=0;i<4;i++){
+  const shelf=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.06,0.4),matInox);
+  shelf.position.set(5,0.4+i*0.5,-3.8);shelf.castShadow=true;kitchen.add(shelf);
+}
+scene.add(kitchen);
+Collision.addBox(-3.1,3.1,-4.1,-2.9,'bancada');
+Collision.addBox(-4.6,-2.4,-5.1,-3.9,'forno');
+
+/* ====== BALCÃO CENTRAL (divisor) ====== */
+const balcao=new THREE.Mesh(new THREE.BoxGeometry(8,1.0,0.9),matWood);
+balcao.position.set(0,0.5,-1.5);balcao.castShadow=true;balcao.receiveShadow=true;scene.add(balcao);
+const balcaoTop=new THREE.Mesh(new THREE.BoxGeometry(8.2,0.08,1.0),matRed);
+balcaoTop.position.set(0,1.04,-1.5);balcaoTop.castShadow=true;scene.add(balcaoTop);
+// Caixa registradora
+const caixa=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.4,0.5),matBlack);
+caixa.position.set(3,1.25,-1.5);caixa.castShadow=true;scene.add(caixa);
+// Placa "PIZZARIA"
+const placa=new THREE.Mesh(new THREE.BoxGeometry(3.5,0.7,0.1),matRed);
+placa.position.set(0,2.6,-1.5);placa.castShadow=true;scene.add(placa);
+const placaTxt=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.5,0.05),new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:0.4}));
+placaTxt.position.set(0,2.6,-1.44);scene.add(placaTxt);
+// Balcão frontal para receber delivery / clientes de balcão
+const balcaoFront=new THREE.Mesh(new THREE.BoxGeometry(4,1.0,0.5),matWood);
+balcaoFront.position.set(0,0.5,0.5);balcaoFront.castShadow=true;scene.add(balcaoFront);
+const balcaoFrontTop=new THREE.Mesh(new THREE.BoxGeometry(4.2,0.06,0.6),matRed);
+balcaoFrontTop.position.set(0,1.03,0.5);balcaoFrontTop.castShadow=true;scene.add(balcaoFrontTop);
+scene.add(new THREE.Mesh(new THREE.BoxGeometry(0.7,0.5,0.4),matBlack).translateX(-3.5));
+const caixa2=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.4,0.5),matBlack);
+caixa2.position.set(-3.5,1.25,0.5);caixa2.castShadow=true;scene.add(caixa2);
+Collision.addBox(-4.1,4.1,-1.95,-1.05,'balcao');
+Collision.addBox(-2.1,2.1,0.25,0.75,'balcaoFront');
+
+/* ====== COPA / DELIVERY (lado direito) ====== */
+const copa=new THREE.Group();
+const copaBalcao=new THREE.Mesh(new THREE.BoxGeometry(2.5,1.0,1.2),matInox);
+copaBalcao.position.set(6,0.5,1.5);copaBalcao.castShadow=true;copa.add(copaBalcao);
+const copaTop=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.06,1.3),matRed);
+copaTop.position.set(6,1.03,1.5);copa.add(copaTop);
+// Prateleira de delivery
+for(let i=0;i<3;i++){
+  const shelf=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.05,0.3),matInox);
+  shelf.position.set(6,0.5+i*0.45,2.3);copa.add(shelf);
+}
+// Moto do entregador
+const moto=new THREE.Group();
+const motoBody=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.35,0.35),new THREE.MeshStandardMaterial({color:0x3b82f6,roughness:0.4}));
+motoBody.position.y=0.5;moto.add(motoBody);
+const motoWheel1=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.1,12),matBlack);
+motoWheel1.rotation.x=Math.PI/2;motoWheel1.position.set(-0.25,0.2,0);moto.add(motoWheel1);
+const motoWheel2=motoWheel1.clone();motoWheel2.position.set(0.25,0.2,0);moto.add(motoWheel2);
+const motoBox=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.35,0.4),new THREE.MeshStandardMaterial({color:0xe63946,roughness:0.5}));
+motoBox.position.set(-0.35,0.75,0);moto.add(motoBox);
+moto.position.set(7.5,0,3.5);moto.visible=false;copa.add(moto);
+scene.add(copa);
+Collision.addBox(4.75,7.25,0.9,2.1,'copa');
+
+/* ====== SALÃO (Z positivo, mesas) ====== */
+const tables=[];
+const TABLE_POSITIONS=[
+  {x:-4,z:4},{x:-1.5,z:4},{x:1.5,z:4},{x:4,z:4},
+  {x:-4,z:7},{x:-1.5,z:7},{x:1.5,z:7},{x:4,z:7}
+];
+function createTable(pos){
+  const g=new THREE.Group();
+  const tampo=new THREE.Mesh(new THREE.BoxGeometry(1.1,0.08,1.1),matWood);
+  tampo.position.y=0.75;tampo.castShadow=true;g.add(tampo);
+  const perna=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,0.75),matBlack);
+  perna.position.y=0.37;g.add(perna);
+  // 4 cadeiras
+  const chairs=[];
+  [[-0.7,0],[0.7,0],[0,-0.7],[0,0.7]].forEach(([cx,cz])=>{
+    const c=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.5,0.4),matBlack);
+    c.position.set(cx,0.25,cz);c.castShadow=true;g.add(c);
+    chairs.push({x:pos.x+cx,z:pos.z+cz,mesh:c,occupied:false});
+  });
+  g.position.set(pos.x,0,pos.z);scene.add(g);
+  Collision.addCircle(pos.x,pos.z,0.75,'table');
+  const t={id:tables.length,group:g,x:pos.x,z:pos.z,chairs,client:null,state:'free',timer:0};
+  tables.push(t);
+  return t;
+}
+TABLE_POSITIONS.forEach(p=>createTable(p));
+
+/* ====== Player ====== */
+const playerGroup=new THREE.Group();
+const bodyMat=new THREE.MeshStandardMaterial({color:0x2a6fdb,roughness:0.6});
+const skinMat=new THREE.MeshStandardMaterial({color:0xf0c8a0,roughness:0.7});
+const pantsMat=new THREE.MeshStandardMaterial({color:0x1a1a2e,roughness:0.8});
+const shoeMat=new THREE.MeshStandardMaterial({color:0x111111,roughness:0.9});
+const torso=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.7,0.3),bodyMat);torso.position.y=1.05;torso.castShadow=true;playerGroup.add(torso);
+const head=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.4,0.35),skinMat);head.position.y=1.65;head.castShadow=true;playerGroup.add(head);
+const hair=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.12,0.37),new THREE.MeshStandardMaterial({color:0x3a2a1a}));hair.position.y=1.86;playerGroup.add(hair);
+const legL=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.65,0.22),pantsMat);legL.position.set(-0.15,0.35,0);legL.castShadow=true;playerGroup.add(legL);
+const legR=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.65,0.22),pantsMat);legR.position.set(0.15,0.35,0);legR.castShadow=true;playerGroup.add(legR);
+const shoeL=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.1,0.3),shoeMat);shoeL.position.set(-0.15,0.05,0.03);playerGroup.add(shoeL);
+const shoeR=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.1,0.3),shoeMat);shoeR.position.set(0.15,0.05,0.03);playerGroup.add(shoeR);
+const armL=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.6,0.18),bodyMat);armL.position.set(-0.38,1.05,0);armL.castShadow=true;playerGroup.add(armL);
+const armR=new THREE.Mesh(new THREE.BoxGeometry(0.15,0.6,0.18),bodyMat);armR.position.set(0.38,1.05,0);armR.castShadow=true;playerGroup.add(armR);
+const cap=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.12,0.38),matRed);cap.position.y=1.92;playerGroup.add(cap);
+const capBrim=new THREE.Mesh(new THREE.BoxGeometry(0.42,0.04,0.2),matRed);capBrim.position.set(0,1.88,0.28);playerGroup.add(capBrim);
+playerGroup.position.set(0,0,3);scene.add(playerGroup);
+const PLAYER_RADIUS=0.35;
+
+/* ====== Garçom (NPC helper) ====== */
+const waiters=[];
+function createWaiter(idx){
+  const g=new THREE.Group();
+  const bMat=new THREE.MeshStandardMaterial({color:0x10b981,roughness:0.6});
+  const b=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.7,0.28),bMat);b.position.y=1.0;b.castShadow=true;g.add(b);
+  const h=new THREE.Mesh(new THREE.BoxGeometry(0.36,0.36,0.32),skinMat);h.position.y=1.5;g.add(h);
+  const l=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.6,0.2),matBlack);l.position.set(-0.12,0.3,0);g.add(l);
+  const r=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.6,0.2),matBlack);r.position.set(0.12,0.3,0);g.add(r);
+  g.position.set(-2+idx*1.5,0,-2);scene.add(g);
+  waiters.push({group:g,target:null,state:'idle',timer:0,carrying:null});
+  return waiters[waiters.length-1];
+}
+
+/* ====== Entregador (motoboy NPC) ====== */
+let deliveryBoy=null;
+function createDeliveryBoy(){
+  if(deliveryBoy) return deliveryBoy;
+  const g=new THREE.Group();
+  const bMat=new THREE.MeshStandardMaterial({color:0x3b82f6,roughness:0.5});
+  const b=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.7,0.28),bMat);b.position.y=1.0;b.castShadow=true;g.add(b);
+  const h=new THREE.Mesh(new THREE.BoxGeometry(0.36,0.36,0.32),skinMat);h.position.y=1.5;g.add(h);
+  const capB=new THREE.Mesh(new THREE.BoxGeometry(0.4,0.1,0.36),new THREE.MeshStandardMaterial({color:0x1e40af}));capB.position.y=1.72;g.add(capB);
+  const l=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.6,0.2),matBlack);l.position.set(-0.12,0.3,0);g.add(l);
+  const r=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.6,0.2),matBlack);r.position.set(0.12,0.3,0);g.add(r);
+  g.position.set(6,0,1.5);scene.add(g);
+  deliveryBoy={group:g,state:'idle',timer:0,target:null};
+  return deliveryBoy;
+}
+
+/* =====================================================================
+   CLIENTES (fila no balcão) + MESAS + DELIVERY
+===================================================================== */
+const clients=[];
+const clientColors=[0xdb4b4b,0x4bdb6a,0xdb9b4b,0x9b4bdb,0x4b9bdb,0xdb4b9b];
+const QUEUE_SLOTS=[
+  {x:-1.2,z:1.2},{x:-0.4,z:1.2},{x:0.4,z:1.2},{x:1.2,z:1.2},
+  {x:-1.2,z:1.9},{x:-0.4,z:1.9},{x:0.4,z:1.9},{x:1.2,z:1.9},
+  {x:-1.2,z:2.6},{x:-0.4,z:2.6},{x:0.4,z:2.6},{x:1.2,z:2.6}
+];
+
+function makeClientMesh(isVip,isDelivery){
+  const g=new THREE.Group();
+  const color=isVip?0xa78bfa:(isDelivery?0x3b82f6:clientColors[Math.floor(Math.random()*clientColors.length)]);
+  const cMat=new THREE.MeshStandardMaterial({color,roughness:0.6,emissive:isVip?0x3a1060:(isDelivery?0x1e3a8a:0x000000),emissiveIntensity:isVip||isDelivery?0.4:0});
+  const cBody=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.7,0.3),cMat);cBody.position.y=1.0;cBody.castShadow=true;g.add(cBody);
+  const cHead=new THREE.Mesh(new THREE.BoxGeometry(0.38,0.38,0.33),skinMat);cHead.position.y=1.55;cHead.castShadow=true;g.add(cHead);
+  const cl=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.6,0.2),matBlack);cl.position.set(-0.13,0.3,0);g.add(cl);
+  const cr=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.6,0.2),matBlack);cr.position.set(0.13,0.3,0);g.add(cr);
+  if(isVip){
+    const crown=new THREE.Mesh(new THREE.ConeGeometry(0.15,0.2,4),new THREE.MeshStandardMaterial({color:0xffd700,emissive:0xaa7700,emissiveIntensity:0.5,metalness:0.8,roughness:0.2}));
+    crown.position.y=1.85;crown.rotation.y=Math.PI/4;g.add(crown);
+  }
+  return g;
+}
+
+/* Pedido aleatório: 70% pizza inteira, 30% meia-meia */
+function randomOrder(forceDelivery){
+  const isHalf=Math.random()<0.30;
+  if(isHalf){
+    const idA=pick(SABOR_IDS);
+    let idB=pick(SABOR_IDS);
+    while(idB===idA) idB=pick(SABOR_IDS);
+    const half=buildHalfRecipe(idA,idB);
+    const price=Math.round((SABORES[idA].base+SABORES[idB].base)*0.6);
+    return {
+      kind:'half',
+      idA,idB,
+      name:'½ '+SABORES[idA].name+' / ½ '+SABORES[idB].name,
+      price,
+      steps:half.steps,
+      icons:half.steps.map(s=>ING[s].icon)
+    };
+  } else {
+    const id=pick(SABOR_IDS);
+    const recipe=buildRecipe(id);
+    return {
+      kind:'whole',
+      id,
+      name:SABORES[id].name,
+      price:SABORES[id].base,
+      steps:recipe,
+      icons:recipe.map(s=>ING[s].icon)
+    };
+  }
+}
+
+function getPriceForOrder(order,isVip,isDelivery,isTable){
+  let base=order.price*(1+Game.upgrades.caixa*0.1);
+  const ev=Game.getEvent();
+  if(ev.priceMult) base*=ev.priceMult;
+  if(isVip) base*=2;
+  if(isDelivery) base*=1.3;
+  if(isTable) base*=1.15;
+  return Math.round(base);
+}
+
+/* Cliente no balcão (fila) */
+function createQueueClient(slot,order,isVip){
+  const pos=QUEUE_SLOTS[slot];
+  const x=pos.x+rand(-0.15,0.15),z=pos.z;
+  const g=makeClientMesh(isVip,false);
+  g.position.set(x,0,z+2);
+  const ev=Game.getEvent();
+  const patience=((25+Math.random()*10)/Game.state.difficulty)*(ev.patienceMult||1);
+  g.userData={
+    type:'queue',slot,targetX:x,targetZ:z,state:'waiting',
+    patience,maxPatience:patience,
+    order,price:getPriceForOrder(order,isVip,false,false),isVip:!!isVip,
+    col:null,timer:0,called:false
+  };
+  scene.add(g);clients.push(g);
+  g.userData.col=Collision.addCircle(g.position.x,g.position.z,0.35,g);
+  return g;
+}
+
+/* Cliente em mesa */
+function createTableClient(table,isVip){
+  // escolhe uma cadeira livre
+  const freeChairs=table.chairs.filter(c=>!c.occupied);
+  if(!freeChairs.length) return null;
+  const chair=pick(freeChairs);chair.occupied=true;
+  const order=randomOrder(false);
+  const g=makeClientMesh(isVip,false);
+  g.position.set(chair.x,0,chair.z+1.5);
+  const ev=Game.getEvent();
+  const patience=((35+Math.random()*15)/Game.state.difficulty)*(ev.patienceMult||1);
+  g.userData={
+    type:'table',table,chair,targetX:chair.x,targetZ:chair.z,state:'walking',
+    patience,maxPatience:patience,
+    order,price:getPriceForOrder(order,isVip,false,true),isVip:!!isVip,
+    col:null,timer:0,ordered:false,served:false,eating:false
+  };
+  scene.add(g);clients.push(g);
+  table.client=g;table.state='occupied';
+  return g;
+}
+
+/* Pedido de delivery */
+const deliveries=[];
+function createDelivery(){
+  const order=randomOrder(true);
+  const isVip=Math.random()<0.1;
+  const price=getPriceForOrder(order,isVip,true,false);
+  const d={
+    id:Math.random().toString(36).slice(2,8),
+    order,price,isVip,
+    timeLeft:45+Game.state.day*3,
+    state:'pending', // pending → cooking → ready → delivering → done
+    timer:0
+  };
+  deliveries.push(d);
+  notify('🛵 Novo delivery: '+order.name,true);
+  updateDeliveryBar();
+  return d;
+}
+function clearDeliveries(){
+  deliveries.length=0;
+  updateDeliveryBar();
+}
+
+/* =====================================================================
+   INPUT
+===================================================================== */
+const joyZone=document.getElementById('joystick-zone');
+const joyStick=document.getElementById('joystick-stick');
+let joyActive=false,joyId=null,joyStartX=0,joyStartY=0,joyVecX=0,joyVecY=0;
+const joyMaxRadius=40;
+function joyReset(){joyActive=false;joyId=null;joyStick.style.transform='translate(0,0)';joyVecX=0;joyVecY=0;}
+function joyStart(e){
+  const t=e.changedTouches?e.changedTouches[0]:e;
+  joyActive=true;joyId=t.identifier!==undefined?t.identifier:'mouse';
+  const rect=joyZone.getBoundingClientRect();
+  joyStartX=rect.left+rect.width/2;joyStartY=rect.top+rect.height/2;
+  joyMove(e);
+}
+function joyMove(e){
+  if(!joyActive) return;
+  let t;
+  if(e.changedTouches){t=Array.from(e.changedTouches).find(tt=>tt.identifier===joyId);if(!t)return;}
+  else t=e;
+  let dx=t.clientX-joyStartX,dy=t.clientY-joyStartY;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  if(dist>joyMaxRadius){dx=(dx/dist)*joyMaxRadius;dy=(dy/dist)*joyMaxRadius;}
+  joyStick.style.transform=`translate(${dx}px, ${dy}px)`;
+  joyVecX=dx/joyMaxRadius;joyVecY=dy/joyMaxRadius;
+}
+function joyEnd(e){
+  if(e.changedTouches){const t=Array.from(e.changedTouches).find(tt=>tt.identifier===joyId);if(!t)return;}
+  joyReset();
+}
+joyZone.addEventListener('touchstart',e=>{e.preventDefault();joyStart(e);},{passive:false});
+joyZone.addEventListener('touchmove',e=>{e.preventDefault();joyMove(e);},{passive:false});
+joyZone.addEventListener('touchend',e=>{e.preventDefault();joyEnd(e);},{passive:false});
+joyZone.addEventListener('touchcancel',e=>{e.preventDefault();joyEnd(e);},{passive:false});
+joyZone.addEventListener('mousedown',e=>{e.preventDefault();joyStart(e);});
+window.addEventListener('mousemove',e=>{if(joyActive)joyMove(e);});
+window.addEventListener('mouseup',e=>{if(joyActive)joyEnd(e);});
+
+let camAngle=0,camPitch=0.35,camDistance=6.5;
+let camTouchId=null,camLastX=0,camLastY=0;
+renderer.domElement.addEventListener('touchstart',e=>{
+  for(const t of e.changedTouches){
+    const el=document.elementFromPoint(t.clientX,t.clientY);
+    if(el&&(el.closest('#joystick-zone')||el.closest('#action-btn')||el.closest('#cam-btn')||el.closest('#kitchen-panel')||el.closest('.top-btn')||el.closest('.modal')||el.closest('#tutorial-overlay'))) continue;
+    if(camTouchId===null){camTouchId=t.identifier;camLastX=t.clientX;camLastY=t.clientY;}
+  }
+},{passive:false});
+renderer.domElement.addEventListener('touchmove',e=>{
+  if(camTouchId===null) return;
+  const t=Array.from(e.changedTouches).find(tt=>tt.identifier===camTouchId);
+  if(!t) return;
+  camAngle-=(t.clientX-camLastX)*0.006;
+  camPitch+=(t.clientY-camLastY)*0.005;
+  camPitch=Math.max(-0.15,Math.min(0.85,camPitch));
+  camLastX=t.clientX;camLastY=t.clientY;
+},{passive:false});
+renderer.domElement.addEventListener('touchend',e=>{
+  const t=Array.from(e.changedTouches).find(tt=>tt.identifier===camTouchId);
+  if(t) camTouchId=null;
+});
+let mouseDown=false;
+renderer.domElement.addEventListener('mousedown',e=>{mouseDown=true;camLastX=e.clientX;camLastY=e.clientY;});
+window.addEventListener('mouseup',()=>{mouseDown=false;});
+window.addEventListener('mousemove',e=>{
+  if(!mouseDown) return;
+  camAngle-=(e.clientX-camLastX)*0.006;
+  camPitch+=(e.clientY-camLastY)*0.005;
+  camPitch=Math.max(-0.15,Math.min(0.85,camPitch));
+  camLastX=e.clientX;camLastY=e.clientY;
+});
+document.getElementById('cam-btn').addEventListener('click',()=>{camAngle=0;camPitch=0.35;});
+
+/* =====================================================================
+   UI helpers
+===================================================================== */
+const hudMoney=document.getElementById('hud-money');
+const hudRep=document.getElementById('hud-rep');
+const hudServed=document.getElementById('hud-served');
+const hudGoal=document.getElementById('hud-goal');
+const hudTime=document.getElementById('hud-time');
+const hintEl=document.getElementById('hint');
+const actionBtn=document.getElementById('action-btn');
+const orderBubble=document.getElementById('order-bubble');
+const orderItem=document.getElementById('order-item');
+const orderPrice=document.getElementById('order-price');
+const orderReq=document.getElementById('order-req');
+const kitchenPanel=document.getElementById('kitchen-panel');
+const kitSteps=document.getElementById('kit-steps');
+const kitBtns=document.getElementById('kit-btns');
+const stockBadge=document.getElementById('stock-badge');
+const achBadge=document.getElementById('ach-badge');
+const notifBadge=document.getElementById('notif-badge');
+const notifText=document.getElementById('notif-text');
+const callBadge=document.getElementById('call-badge');
+const deliveryBar=document.getElementById('delivery-bar');
+
+function updateHUD(){
+  const s=Game.state;
+  hudMoney.textContent='R$ '+Math.floor(s.money);
+  hudRep.textContent=Math.round(s.reputation);
+  hudServed.textContent=s.served;
+  hudGoal.textContent='R$ '+s.goal;
+  hudTime.textContent=fmtTime(s.timeLeft);
+  hudTime.classList.toggle('low',s.inShift&&s.timeLeft<=15);
+}
+function updateStockBadge(){
+  const low=Object.keys(Game.stock).some(k=>Game.stock[k]<2);
+  stockBadge.style.display=low?'flex':'none';
+}
+function updateAchBadge(){
+  const vals=Object.values(Game.achievements);
+  const unlocked=vals.filter(a=>a.unlocked).length;
+  achBadge.style.display=unlocked>0&&unlocked<vals.length?'flex':'none';
+}
+function updateWeatherBadge(){
+  const ev=Game.getEvent();
+  const badge=document.getElementById('weather-badge');
+  if(ev.id==='normal'){badge.classList.remove('show');return;}
+  document.getElementById('weather-icon').textContent=ev.icon;
+  document.getElementById('weather-text').textContent=ev.name;
+  badge.classList.add('show');
+}
+function showBanner(html){
+  const el=document.getElementById('day-banner');
+  el.innerHTML=html;
+  el.classList.remove('show');void el.offsetWidth;el.classList.add('show');
+}
+function showFloat(text,worldPos,cls){
+  const rect=renderer.domElement.getBoundingClientRect();
+  const p=worldPos.clone();p.y+=2;p.project(camera);
+  const el=document.createElement('div');
+  el.className='float-msg '+cls;
+  el.textContent=text;
+  el.style.left=((p.x*0.5+0.5)*rect.width)+'px';
+  el.style.top=((-p.y*0.5+0.5)*rect.height)+'px';
+  container.appendChild(el);
+  setTimeout(()=>el.remove(),1600);
+}
+function showAchievementToast(ach){
+  const el=document.createElement('div');
+  el.style.cssText='position:absolute;top:20%;left:50%;transform:translateX(-50%);background:linear-gradient(180deg,#ffd700,#e63946);color:#121214;padding:12px 20px;border-radius:12px;font-weight:bold;z-index:120;box-shadow:0 8px 30px rgba(255,215,0,.5);text-align:center;max-width:90%;animation:popIn .3s ease-out;pointer-events:none;';
+  el.innerHTML='🏆 <div style="font-size:.7rem;opacity:.8;margin-bottom:2px;">CONQUISTA DESBLOQUEADA</div><div style="font-size:.95rem;">'+ach.icon+' '+ach.name+'</div><div style="font-size:.7rem;opacity:.7;margin-top:2px;">'+ach.desc+'</div>';
+  container.appendChild(el);
+  if(navigator.vibrate) navigator.vibrate([50,50,50]);
+  setTimeout(()=>{el.style.transition='opacity .5s';el.style.opacity='0';setTimeout(()=>el.remove(),500);},3000);
+}
+
+function syncUI(){Game.uiOpen=!!document.querySelector('.modal.open');}
+function openModal(id){joyReset();document.getElementById(id).classList.add('open');syncUI();}
+function closeModal(id){document.getElementById(id).classList.remove('open');syncUI();}
+
+function notify(msg,temporary){
+  notifText.textContent=msg;
+  notifBadge.classList.add('show');
+  if(temporary) setTimeout(()=>notifBadge.classList.remove('show'),2500);
+}
+function updateCallBadge(){
+  const waiting=clients.filter(c=>c.userData.state==='waiting'||c.userData.state==='tableWaiting'||c.userData.state==='walking').length;
+  const pend=deliveries.filter(d=>d.state==='pending').length;
+  const total=waiting+pend;
+  if(total>0){callBadge.style.display='flex';callBadge.textContent=total;}
+  else callBadge.style.display='none';
+}
+function updateDeliveryBar(){
+  if(!deliveries.length){deliveryBar.style.display='none';return;}
+  deliveryBar.style.display='flex';
+  deliveryBar.innerHTML=deliveries.map(d=>{
+    const late=d.timeLeft<10;
+    return `<div class="delivery-item ${late?'late':''}">
+      <span>${d.isVip?'👑 ':''}${d.order.name.slice(0,18)}…</span>
+      <span class="tm">${Math.ceil(d.timeLeft)}s · ${d.state}</span>
+    </div>`;
+  }).join('');
+}
+
+function beginShiftUI(){
+  applyEnv();updateHUD();updateStockBadge();updateWeatherBadge();
+  spawnTimer=0;autoServeTimer=0;lastSec=-1;
+  deliveries.length=0;updateDeliveryBar();
+  const s=Game.state,ev=Game.getEvent();
+  showBanner('<div class="t">Dia '+s.day+'</div>'+
+    (ev.id==='normal'?'':'<div class="e">'+ev.icon+' '+ev.name+' — '+ev.desc+'</div>')+
+    '<div class="g">Meta: R$ '+s.goal+' · Tempo: '+fmtTime(s.timeLeft)+'</div>');
+  // spawn inicial
+  spawnQueueClient();spawnQueueClient();
+  if(Math.random()<0.5) spawnTableClient();
+  if(Math.random()<0.4) createDelivery();
+}
+
+/* =====================================================================
+   COZINHA (montagem da pizza)
+===================================================================== */
+let cookingTarget=null; // {kind:'queue'|'table'|'delivery', ref}
+let cookStepIndex=0,cookBase=0;
+
+function getClosestQueueClient(){
+  let closest=null,closestDist=Infinity;
+  clients.forEach(c=>{
+    if(c.userData.type!=='queue') return;
+    if(c.userData.state!=='waiting') return;
+    const dx=playerGroup.position.x-c.position.x;
+    const dz=playerGroup.position.z-c.position.z;
+    const d=Math.sqrt(dx*dx+dz*dz);
+    if(d<closestDist&&d<2.6){closestDist=d;closest=c;}
+  });
+  return closest;
+}
+function getClosestTableClient(){
+  let closest=null,closestDist=Infinity;
+  clients.forEach(c=>{
+    if(c.userData.type!=='table') return;
+    if(c.userData.state!=='waiting'&&c.userData.state!=='tableWaiting') return;
+    const dx=playerGroup.position.x-c.position.x;
+    const dz=playerGroup.position.z-c.position.z;
+    const d=Math.sqrt(dx*dx+dz*dz);
+    if(d<closestDist&&d<2.6){closestDist=d;closest=c;}
+  });
+  return closest;
+}
+function getClosestPendingDelivery(){
+  // só pega delivery pendente se player estiver perto da copa
+  const copaDist=Math.hypot(playerGroup.position.x-6,playerGroup.position.z-1.5);
+  if(copaDist>2.5) return null;
+  return deliveries.find(d=>d.state==='pending')||null;
+}
+
+// Verifica se player está atrás do balcão (z < -1.05, entre x -4..4)
+function playerBehindCounter(){
+  const p=playerGroup.position;
+  return p.z<-1.05&&p.z>-2.5&&p.x>-4.5&&p.x<4.5;
+}
+
+function showOrderBubbleFor(target){
+  if(!target){orderBubble.style.display='none';return;}
+  let o,price,isVip,cls;
+  if(target.kind==='queue'){
+    o=target.ref.userData.order;price=target.ref.userData.price;isVip=target.ref.userData.isVip;cls=isVip?'vip':'';
+  } else if(target.kind==='table'){
+    o=target.ref.userData.order;price=target.ref.userData.price;isVip=target.ref.userData.isVip;cls='table';
+  } else {
+    o=target.ref.order;price=target.ref.price;isVip=target.ref.isVip;cls='delivery';
+  }
+  orderItem.textContent=o.name+(isVip?' 👑':'');
+  orderPrice.textContent=fmt(price);
+  let recipeText='Preparo: '+o.icons.join(' → ');
+  if(o.kind==='half') recipeText+=' (meia-meia)';
+  orderReq.textContent=recipeText;
+  const has=Game.hasStock(o.steps);
+  orderReq.style.color=has?'#c4c4cc':'#f87171';
+  if(!has) orderReq.textContent+=' ⚠ SEM ESTOQUE';
+  orderBubble.classList.remove('vip','delivery','table');
+  if(cls) orderBubble.classList.add(cls);
+  orderBubble.style.display='block';
+}
+
+function autoStepsFor(order){
+  const g=Game.upgrades.forno;
+  const b=Game.upgrades.bancada;
+  // forno nv1 e nv4: +1 cada; bancada nv1 e nv4: +1 cada; pizzaiolo: +1 cada
+  const n=(g>=1?1:0)+(g>=4?1:0)+(b>=1?1:0)+(b>=4?1:0)+Game.staff.pizzaiolo;
+  return Math.min(n,order.steps.length-1);
+}
+
+function renderKitchenSlots(){
+  if(!cookingTarget) return;
+  const o=cookingTarget.ref.userData?cookingTarget.ref.userData.order:cookingTarget.ref.order;
+  const icons=o.icons;
+  kitSteps.innerHTML=icons.map((ic,i)=>
+    '<div class="slot '+(i<cookStepIndex?'done':i===cookStepIndex?'next':'')+'">'+ic+'</div>').join('');
+  // Botões: todos os ingredientes únicos da receita
+  const uniqueIngs=[...new Set(o.steps)];
+  kitBtns.innerHTML=uniqueIngs.map(ing=>
+    `<div class="kit-btn" data-ing="${ing}">${ING[ing].icon}<span class="lbl">${ING[ing].name}</span></div>`).join('');
+  kitBtns.querySelectorAll('.kit-btn').forEach(btn=>{
+    btn.addEventListener('touchstart',e=>{e.preventDefault();doCookStep(btn.dataset.ing);},{passive:false});
+    btn.addEventListener('mousedown',e=>{e.preventDefault();doCookStep(btn.dataset.ing);});
+  });
+}
+
+function startCooking(target){
+  let order,hasStock;
+  if(target.kind==='queue'){order=target.ref.userData.order;}
+  else if(target.kind==='table'){order=target.ref.userData.order;}
+  else {order=target.ref.order;}
+  if(!Game.hasStock(order.steps)){
+    showFloat('SEM ESTOQUE!',target.ref.position||playerGroup.position,'loss');
+    if(navigator.vibrate) navigator.vibrate([50,50,50]);
+    return;
+  }
+  cookingTarget=target;
+  cookBase=autoStepsFor(order);
+  cookStepIndex=cookBase;
+  if(cookBase>0){Game.stats.autoCooked+=cookBase;}
+  Game.state.phase='cooking';
+  orderBubble.style.display='none';
+  hintEl.style.display='none';
+  kitchenPanel.style.display='flex';
+  actionBtn.classList.add('disabled');
+  renderKitchenSlots();
+}
+
+function cancelCooking(){
+  kitchenPanel.style.display='none';
+  cookingTarget=null;cookStepIndex=0;cookBase=0;
+  if(Game.state.phase==='cooking') Game.state.phase='playing';
+}
+
+function doCookStep(ing){
+  if(!cookingTarget||Game.uiOpen) return;
+  const o=cookingTarget.ref.userData?cookingTarget.ref.userData.order:cookingTarget.ref.order;
+  const steps=o.steps;
+  if(ing===steps[cookStepIndex]){
+    cookStepIndex++;
+    if(navigator.vibrate) navigator.vibrate(12);
+    renderKitchenSlots();
+    if(cookStepIndex>=steps.length) finishCooking();
+  } else {
+    cookStepIndex=cookBase;
+    renderKitchenSlots();
+    const pos=cookingTarget.ref.position||playerGroup.position;
+    showFloat('Errado! Recomece',pos,'loss');
+    if(navigator.vibrate) navigator.vibrate([30,30,30]);
+  }
+}
+
+function finishCooking(){
+  const target=cookingTarget;
+  if(!target) return;
+  const s=Game.state;
+  kitchenPanel.style.display='none';
+  const o=target.ref.userData?target.ref.userData.order:target.ref.order;
+  Game.consumeStock(o.steps);
+  const pos=target.ref.position||playerGroup.position;
+
+  if(o.kind==='half'){
+    Game.stats.halfPizzas++;
+    Game.unlockAchievement('first_half');
+  }
+
+  if(target.kind==='queue'){
+    const c=target.ref;
+    c.userData.state='served';c.userData.timer=0;
+    s.served++;s.totalServed++;
+    Game.addMoney(c.userData.price);
+    Game.addReputation(c.userData.isVip?5:2);
+    showFloat('+'+fmt(c.userData.price)+(c.userData.isVip?' 👑':' ❤'),pos,c.userData.isVip?'vip':'gain');
+    if(c.userData.isVip){Game.stats.vipServed++;if(Game.stats.vipServed>=10) Game.unlockAchievement('vip_10');}
+  } else if(target.kind==='table'){
+    const c=target.ref;
+    c.userData.state='eating';c.userData.timer=0;c.userData.served=true;
+    s.served++;s.totalServed++;
+    Game.stats.tablesServed++;s.totalTablesServed=(s.totalTablesServed||0)+1;
+    Game.addMoney(c.userData.price);
+    Game.addReputation(c.userData.isVip?6:3);
+    showFloat('+'+fmt(c.userData.price)+' 🍽️',pos,'table');
+    Game.unlockAchievement('first_table');
+    if(Game.stats.tablesServed>=30) Game.unlockAchievement('table_30');
+    if(c.userData.isVip){Game.stats.vipServed++;if(Game.stats.vipServed>=10) Game.unlockAchievement('vip_10');}
+  } else if(target.kind==='delivery'){
+    const d=target.ref;
+    d.state='ready';
+    // libera motoboy
+    if(deliveryBoy){
+      deliveryBoy.state='delivering';deliveryBoy.timer=0;deliveryBoy.target=d;
+      d.state='delivering';
+    }
+    showFloat('📦 Pronto p/ entrega',pos,'delivery');
+  }
+
+  if(navigator.vibrate) navigator.vibrate(40);
+  Game.unlockAchievement('first_sale');
+  cookingTarget=null;cookStepIndex=0;cookBase=0;
+  s.phase='playing';
+  updateHUD();updateStockBadge();
+  Game.save();
+}
+
+/* =====================================================================
+   ACTION BUTTON — contexto
+===================================================================== */
+actionBtn.addEventListener('touchstart',e=>{e.preventDefault();actionBtn.classList.add('active');onAction();},{passive:false});
+actionBtn.addEventListener('touchend',e=>{e.preventDefault();actionBtn.classList.remove('active');},{passive:false});
+actionBtn.addEventListener('mousedown',e=>{e.preventDefault();actionBtn.classList.add('active');onAction();});
+actionBtn.addEventListener('mouseup',()=>actionBtn.classList.remove('active'));
+
+function onAction(){
+  if(Game.state.phase!=='playing'||Game.uiOpen||Tutorial.active) return;
+  // Prioridade: delivery pendente na copa > cliente próximo (mesa ou balcão)
+  const del=getClosestPendingDelivery();
+  if(del){startCooking({kind:'delivery',ref:del});return;}
+  const t=getClosestTableClient();
+  if(t){
+    if(t.userData.state==='walking'||t.userData.state==='tableWaiting'){
+      // "anota pedido" — cliente passa de walking/tableWaiting para waiting
+      if(t.userData.state==='tableWaiting'){
+        t.userData.state='waiting';
+        showFloat('Pedido anotado!',t.position,'table');
+      }
+    }
+    startCooking({kind:'table',ref:t});return;
+  }
+  const q=getClosestQueueClient();
+  if(q){startCooking({kind:'queue',ref:q});return;}
+}
+
+const kitCancel=document.getElementById('kit-cancel');
+kitCancel.addEventListener('touchstart',e=>{e.preventDefault();cancelCooking();},{passive:false});
+kitCancel.addEventListener('mousedown',e=>{e.preventDefault();cancelCooking();});
+window.addEventListener('keydown',e=>{if(e.code==='KeyE') onAction();});
+
+/* =====================================================================
+   SPAWN
+===================================================================== */
+let spawnTimer=0,autoServeTimer=0,autosaveTimer=0,lastSec=-1,spawnTableTimer=0,spawnDeliveryTimer=0;
+
+function getSpawnInterval(){
+  const ev=Game.getEvent();
+  const reduced=Math.max(2,(6-Game.upgrades.marketing*0.8)*(ev.spawnMult||1));
+  return reduced/Game.state.difficulty;
+}
+function getMaxClients(){return 3+Game.upgrades.marketing+(Game.getEvent().maxClients||0);}
+
+function spawnQueueClient(){
+  const ph=Game.state.phase;
+  if(ph!=='playing'&&ph!=='cooking') return;
+  const waiting=clients.filter(c=>c.userData.type==='queue'&&c.userData.state==='waiting');
+  if(waiting.length>=getMaxClients()) return;
+  const usedSlots=waiting.map(c=>c.userData.slot);
+  const free=[];
+  for(let i=0;i<QUEUE_SLOTS.length;i++) if(!usedSlots.includes(i)) free.push(i);
+  if(!free.length) return;
+  const order=randomOrder(false);
+  const ev=Game.getEvent();
+  let vipChance=ev.vipChance||0.08;
+  if(Game.upgrades.marketing>=3) vipChance+=0.05;
+  createQueueClient(free[0],order,Math.random()<vipChance);
+}
+function spawnTableClient(){
+  if(Game.state.phase!=='playing'&&Game.state.phase!=='cooking') return;
+  const freeTables=tables.filter(t=>t.state==='free');
+  if(!freeTables.length) return;
+  const maxTables=2+Game.upgrades.copa+Game.staff.garcom; // limite de mesas ativas
+  const activeTables=tables.filter(t=>t.state!=='free').length;
+  if(activeTables>=maxTables) return;
+  const t=pick(freeTables);
+  const isVip=Math.random()<(Game.getEvent().vipChance||0.08)+0.05;
+  createTableClient(t,isVip);
+}
+function spawnDelivery(){
+  if(Game.state.phase!=='playing'&&Game.state.phase!=='cooking') return;
+  if(deliveries.filter(d=>d.state!=='done').length>=2+Game.staff.entregador) return;
+  createDelivery();
+}
+
+/* Atendente (fila balcão) */
+function autoServeTick(dt){
+  if(Game.staff.atendente<=0) return;
+  autoServeTimer+=dt;
+  if(autoServeTimer<12/Game.staff.atendente) return;
+  autoServeTimer=0;
+  for(const c of clients){
+    if(c.userData.type!=='queue') continue;
+    if(c.userData.state!=='waiting') continue;
+    if(c===cookingTarget?.ref) continue;
+    if(!Game.hasStock(c.userData.order.steps)) continue;
+    Game.consumeStock(c.userData.order.steps);
+    c.userData.state='served';c.userData.timer=0;
+    Game.state.served++;Game.state.totalServed++;
+    Game.addMoney(c.userData.price);
+    Game.addReputation(1);
+    Game.stats.autoServed++;
+    showFloat('🤵 Auto +'+fmt(c.userData.price),c.position,'info');
+    updateStockBadge();
+    break;
+  }
+}
+
+/* Garçom: pega pedido de mesa automaticamente e marca como anotado */
+function autoWaiterTick(dt){
+  if(Game.staff.garcom<=0) return;
+  waiters.forEach((w,i)=>{
+    if(i>=Game.staff.garcom) return;
+    w.timer+=dt;
+    if(w.timer<6/Game.staff.garcom) return;
+    w.timer=0;
+    // procura mesa esperando
+    const target=clients.find(c=>c.userData.type==='table'&&(c.userData.state==='walking'||c.userData.state==='tableWaiting'));
+    if(target){
+      target.userData.state='waiting';
+      showFloat('🤵 Pedido anotado',target.position,'table');
+    }
+  });
+}
+
+/* Entregador: leva delivery pronta */
+function autoDeliveryTick(dt){
+  if(!deliveryBoy) return;
+  const db=deliveryBoy;
+  if(db.state==='delivering'&&db.target){
+    db.timer+=dt;
+    // animação simples: sai para a direita
+    db.group.position.x=6+db.timer*2;
+    if(db.timer>2){
+      // entrega concluída
+      const d=db.target;
+      d.state='done';
+      Game.state.served++;Game.state.totalServed++;
+      Game.addMoney(d.price);
+      Game.addReputation(d.isVip?4:2);
+      Game.stats.deliveries++;
+      Game.state.totalDeliveries=(Game.state.totalDeliveries||0)+1;
+      Game.unlockAchievement('first_delivery');
+      if(Game.stats.deliveries>=20) Game.unlockAchievement('delivery_20');
+      showFloat('🛵 +'+fmt(d.price),db.group.position,'delivery');
+      db.target=null;db.state='idle';db.timer=0;db.group.position.set(6,0,1.5);
+      // remove da lista
+      const idx=deliveries.indexOf(d);
+      if(idx>-1) deliveries.splice(idx,1);
+      updateDeliveryBar();
+    }
+  }
+}
+
+/* =====================================================================
+   LOOP
+===================================================================== */
+const clock=new THREE.Clock();
+const moveSpeed=4.2;
+
+function updateInteractionUI(){
+  const ph=Game.state.phase;
+  if(Game.uiOpen||Tutorial.active){hintEl.style.display='none';orderBubble.style.display='none';return;}
+  if(ph==='cooking'){hintEl.style.display='none';actionBtn.classList.add('disabled');actionBtn.classList.remove('delivery-mode','waiter-mode');return;}
+  if(ph!=='playing'){hintEl.style.display='none';orderBubble.style.display='none';actionBtn.classList.add('disabled');actionBtn.classList.remove('delivery-mode','waiter-mode');return;}
+
+  // Prioridade delivery na copa
+  const del=getClosestPendingDelivery();
+  if(del){
+    actionBtn.classList.remove('disabled');actionBtn.classList.add('delivery-mode');actionBtn.classList.remove('waiter-mode');
+    hintEl.style.display='block';hintEl.textContent='🛵 Preparar delivery';
+    showOrderBubbleFor({kind:'delivery',ref:del});
+    return;
+  }
+  const t=getClosestTableClient();
+  if(t){
+    actionBtn.classList.remove('disabled');actionBtn.classList.add('waiter-mode');actionBtn.classList.remove('delivery-mode');
+    hintEl.style.display='block';
+    if(t.userData.state==='walking'||t.userData.state==='tableWaiting') hintEl.textContent='🤵 Anotar pedido da mesa';
+    else hintEl.textContent='🍕 Preparar pizza da mesa';
+    showOrderBubbleFor({kind:'table',ref:t});
+    return;
+  }
+  const q=getClosestQueueClient();
+  if(q){
+    actionBtn.classList.remove('disabled');actionBtn.classList.remove('delivery-mode','waiter-mode');
+    hintEl.style.display='block';hintEl.textContent='🍕 Toque para atender';
+    showOrderBubbleFor({kind:'queue',ref:q});
+    return;
+  }
+  // Se player está atrás do balcão e há clientes no salão, ele pode atender dali
+  if(playerBehindCounter()&&clients.some(c=>c.userData.type==='table'&&c.userData.state==='waiting')){
+    hintEl.style.display='block';hintEl.textContent='🍕 Atender mesa pelo balcão';
+    actionBtn.classList.remove('disabled');
+    return;
+  }
+  actionBtn.classList.add('disabled');
+  actionBtn.classList.remove('delivery-mode','waiter-mode');
+  orderBubble.style.display='none';
+  const dx=playerGroup.position.x,dz=playerGroup.position.z-1.8;
+  if(Math.sqrt(dx*dx+dz*dz)<2.5){hintEl.style.display='block';hintEl.textContent='Aproxime-se de um cliente';}
+  else hintEl.style.display='none';
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.1);
+  const ph=Game.state.phase;
+  const running=(ph==='playing'||ph==='cooking')&&!Game.uiOpen&&!Tutorial.active;
+  const sdt=running?dt:0;
+
+  // Movimento
+  let moveX=joyVecX,moveZ=joyVecY;
+  const mag=Math.sqrt(moveX*moveX+moveZ*moveZ);
+  if(mag>0.15&&ph!=='cooking'&&!Game.uiOpen){
+    const norm=Math.min(mag,1);
+    moveX=(moveX/mag)*norm;moveZ=(moveZ/mag)*norm;
+    const cos=Math.cos(camAngle),sin=Math.sin(camAngle);
+    const worldX=moveX*cos-moveZ*sin;
+    const worldZ=moveX*sin+moveZ*cos;
+    let nx=playerGroup.position.x+worldX*moveSpeed*dt;
+    let nz=playerGroup.position.z+worldZ*moveSpeed*dt;
+    const res=Collision.resolvePlayer(nx,nz,PLAYER_RADIUS);
+    playerGroup.position.x=Math.max(-14,Math.min(14,res.x));
+    playerGroup.position.z=Math.max(-14,Math.min(14,res.z));
+    const targetAngle=Math.atan2(worldX,worldZ);
+    let diff=targetAngle-playerGroup.rotation.y;
+    while(diff>Math.PI) diff-=Math.PI*2;
+    while(diff<-Math.PI) diff+=Math.PI*2;
+    playerGroup.rotation.y+=diff*12*dt;
+    const t=performance.now()*0.012;
+    armL.rotation.x=Math.sin(t)*0.6;armR.rotation.x=-Math.sin(t)*0.6;
+    legL.rotation.x=Math.sin(t)*0.4;legR.rotation.x=-Math.sin(t)*0.4;
+  } else {
+    armL.rotation.x*=0.85;armR.rotation.x*=0.85;
+    legL.rotation.x*=0.85;legR.rotation.x*=0.85;
+  }
+
+  // Câmera
+  const camX=playerGroup.position.x+Math.sin(camAngle)*camDistance*Math.cos(camPitch);
+  const camY=playerGroup.position.y+2.2+Math.sin(camPitch)*camDistance;
+  const camZ=playerGroup.position.z+Math.cos(camAngle)*camDistance*Math.cos(camPitch);
+  camera.position.lerp(new THREE.Vector3(camX,camY,camZ),8*dt);
+  camera.lookAt(playerGroup.position.x,playerGroup.position.y+1.2,playerGroup.position.z);
+
+  // Relógio
+  if(running){
+    Game.state.timeLeft-=sdt;
+    const sec=Math.ceil(Game.state.timeLeft);
+    if(sec!==lastSec){lastSec=sec;updateHUD();}
+    spawnTimer+=sdt;
+    if(spawnTimer>getSpawnInterval()){spawnTimer=0;spawnQueueClient();}
+    spawnTableTimer+=sdt;
+    if(spawnTableTimer>getSpawnInterval()*1.6){spawnTableTimer=0;spawnTableClient();}
+    spawnDeliveryTimer+=sdt;
+    if(spawnDeliveryTimer>getSpawnInterval()*2.2){spawnDeliveryTimer=0;spawnDelivery();}
+    autoServeTick(sdt);
+    autoWaiterTick(sdt);
+    autoDeliveryTick(sdt);
+    autosaveTimer+=sdt;
+    if(autosaveTimer>10){autosaveTimer=0;Game.save();}
+    if(Game.state.timeLeft<=0){Game.state.timeLeft=0;Game.endShift();}
+    // atualiza deliveries
+    let dirty=false;
+    for(let i=deliveries.length-1;i>=0;i--){
+      const d=deliveries[i];
+      if(d.state==='done') continue;
+      if(d.state==='delivering') continue;
+      d.timeLeft-=sdt;
+      if(d.timeLeft<=0){
+        // delivery perdido
+        deliveries.splice(i,1);
+        Game.loseMoney(Math.round(d.price*0.3));
+        Game.addReputation(-2);
+        showFloat('🛵 Delivery perdido!',playerGroup.position,'loss');
+        dirty=true;
+      }
+    }
+    if(dirty||Math.floor(performance.now()/1000)%2===0) updateDeliveryBar();
+  }
+
+  // Clientes
+  for(let i=clients.length-1;i>=0;i--){
+    const c=clients[i],ud=c.userData;
+    if(ud.type==='queue'){
+      if(ud.state==='waiting'){
+        const dx=ud.targetX-c.position.x,dz=ud.targetZ-c.position.z;
+        const dist=Math.sqrt(dx*dx+dz*dz);
+        if(dist>0.05){c.position.x+=(dx/dist)*2*sdt;c.position.z+=(dz/dist)*2*sdt;}
+        if(ud.col){ud.col.x=c.position.x;ud.col.z=c.position.z;}
+        c.rotation.y=0;
+        if(running&&c!==cookingTarget?.ref){
+          ud.patience-=sdt;
+          if(ud.patience/ud.maxPatience<0.3) c.scale.setScalar(Math.sin(performance.now()*0.01)>0?1.05:1.0);
+          else c.scale.setScalar(1.0);
+          if(ud.patience<=0){
+            c.userData.state='leaving';c.userData.timer=0;
+            if(ud.col){const idx=Collision.circles.indexOf(ud.col);if(idx>-1)Collision.circles.splice(idx,1);ud.col=null;}
+            Game.loseMoney(10);Game.addReputation(-3);
+            Game.state.lostClients++;Game.state.totalLost++;
+            showFloat('-R$ 10,00 💔',c.position,'loss');
+            if(ud.isVip) showFloat('VIP PERDIDO!',c.position,'loss');
+          }
+        }
+      } else if(ud.state==='served'){
+        ud.timer+=sdt;c.rotation.y=0;
+        c.scale.setScalar(Math.sin(ud.timer*20)>0?1.08:1.0);
+        if(ud.timer>1.5){c.userData.state='leaving';c.userData.timer=0;c.scale.setScalar(1);
+          if(ud.col){const idx=Collision.circles.indexOf(ud.col);if(idx>-1)Collision.circles.splice(idx,1);ud.col=null;}}
+      } else if(ud.state==='leaving'){
+        ud.timer+=sdt;c.position.z+=3*sdt;
+        if(c.position.z>20){scene.remove(c);if(ud.col){const idx=Collision.circles.indexOf(ud.col);if(idx>-1)Collision.circles.splice(idx,1);}clients.splice(i,1);}
+      }
+    } else if(ud.type==='table'){
+      if(ud.state==='walking'){
+        const dx=ud.targetX-c.position.x,dz=ud.targetZ-c.position.z;
+        const dist=Math.sqrt(dx*dx+dz*dz);
+        if(dist>0.05){c.position.x+=(dx/dist)*1.8*sdt;c.position.z+=(dz/dist)*1.8*sdt;}
+        else {c.userData.state='tableWaiting';c.userData.timer=0;c.rotation.y=Math.atan2(playerGroup.position.x-c.position.x,playerGroup.position.z-c.position.z);}
+      } else if(ud.state==='tableWaiting'){
+        c.rotation.y=Math.atan2(playerGroup.position.x-c.position.x,playerGroup.position.z-c.position.z);
+        ud.patience-=sdt;
+        if(ud.patience<=0){
+          // desiste
+          ud.table.state='free';ud.chair.occupied=false;ud.table.client=null;
+          c.userData.state='leaving';c.userData.timer=0;
+          Game.loseMoney(10);Game.addReputation(-3);
+          Game.state.lostClients++;Game.state.totalLost++;
+          showFloat('-R$ 10,00 💔',c.position,'loss');
+        }
+      } else if(ud.state==='waiting'){
+        c.rotation.y=Math.atan2(playerGroup.position.x-c.position.x,playerGroup.position.z-c.position.z);
+        if(running&&c!==cookingTarget?.ref){
+          ud.patience-=sdt*0.6;
+          if(ud.patience<=0){
+            ud.table.state='free';ud.chair.occupied=false;ud.table.client=null;
+            c.userData.state='leaving';c.userData.timer=0;
+            Game.loseMoney(10);Game.addReputation(-3);
+            Game.state.lostClients++;Game.state.totalLost++;
+            showFloat('-R$ 10,00 💔',c.position,'loss');
+          }
+        }
+      } else if(ud.state==='eating'){
+        ud.timer+=sdt;
+        c.scale.setScalar(Math.sin(ud.timer*8)>0?1.05:1.0);
+        if(ud.timer>4){
+          ud.state='leavingTable';ud.timer=0;c.scale.setScalar(1);
+        }
+      } else if(ud.state==='leavingTable'){
+        ud.timer+=sdt;
+        c.position.z+=3*sdt;
+        if(ud.timer>0.5){ud.table.state='free';ud.chair.occupied=false;ud.table.client=null;}
+        if(c.position.z>20){scene.remove(c);clients.splice(i,1);}
+      }
+    }
+  }
+
+  // Atualiza garçons (animação simples)
+  waiters.forEach((w,i)=>{
+    if(i>=Game.staff.garcom){w.group.visible=false;return;}
+    w.group.visible=true;
+    // pequena flutuação
+    w.group.position.y=Math.sin(performance.now()*0.002+i)*0.05;
+  });
+
+  // Motoboy
+  if(deliveryBoy){
+    if(Game.staff.entregador===0&&!deliveryBoy.target){
+      deliveryBoy.group.visible=false;
+    } else {
+      deliveryBoy.group.visible=true;
+    }
+  }
+
+  updateCallBadge();
+  updateInteractionUI();
+  renderer.render(scene,camera);
+}
+
+/* =====================================================================
+   TUTORIAL
+===================================================================== */
+const Tutorial={
+  steps:[
+    {ttl:'Boas-vindas',msg:'Bem-vindo à <b>Pizzaria</b>! Você é o dono. Vamos aprender o básico.'},
+    {ttl:'Movimento',msg:'Use o <span class="k">JOYSTICK</span> para andar. Arraste na tela para girar a câmera.'},
+    {ttl:'Salão e Balcão',msg:'Clientes podem sentar nas <b>mesas</b> ou esperar no <b>balcão</b>. Se a paciência acabar, você perde dinheiro.'},
+    {ttl:'Atendimento',msg:'Aproxime-se e toque em <span class="k">🍕</span>. Nas mesas, o garçom anota o pedido automaticamente se contratado.'},
+    {ttl:'Montagem',msg:'Monte a pizza tocando nos ingredientes <b>na ordem</b>. Pizza <b>meia a meio</b> exige as duas metades!'},
+    {ttl:'Delivery',msg:'Pedidos de <b>delivery</b> aparecem na copa (lado direito). Prepare e o motoboy entrega.'},
+    {ttl:'Equipe',msg:'Contrate <b>Pizzaiolo</b>, <b>Atendente</b>, <b>Garçom</b> e <b>Entregador</b> na loja 🛒.'},
+    {ttl:'Pronto!',msg:'Estoque é essencial. Boa sorte, chefe! 👑'}
+  ],
+  currentStep:0,active:false,
+  start(){this.currentStep=0;this.active=true;joyReset();document.getElementById('tutorial-overlay').classList.add('show');this.render();},
+  next(){this.currentStep++;if(this.currentStep>=this.steps.length) this.finish();else this.render();},
+  finish(){this.active=false;document.getElementById('tutorial-overlay').classList.remove('show');Game.state.tutorialDone=true;Game.save();},
+  render(){
+    const s=this.steps[this.currentStep];
+    document.getElementById('tutorial-ttl').textContent='Passo '+(this.currentStep+1)+' de '+this.steps.length+' · '+s.ttl;
+    document.getElementById('tutorial-msg').innerHTML=s.msg;
+    document.getElementById('tutorial-progress').innerHTML=this.steps.map((_,i)=>
+      '<div class="dot '+(i<this.currentStep?'done':i===this.currentStep?'active':'')+'"></div>').join('');
+    document.getElementById('tutorial-next').textContent=this.currentStep===this.steps.length-1?'🎉 Entendi!':'Continuar ▶';
+  }
+};
+document.getElementById('tutorial-next').addEventListener('click',()=>Tutorial.next());
+document.getElementById('tutorial-skip').addEventListener('click',()=>Tutorial.finish());
+
+/* =====================================================================
+   LOJA
+===================================================================== */
+const UPGRADES=[
+  {id:'forno',ico:'🔥',name:'Forno Melhor',desc:'Nv1 e Nv4: pula 1 passo do preparo cada (sempre sobra 1 toque).',base:100},
+  {id:'bancada',ico:'🔪',name:'Bancada do Pizzaiolo',desc:'Nv1 e Nv4: pula 1 passo do preparo cada. Acelera montagem.',base:150},
+  {id:'freezer',ico:'❄️',name:'Freezer Ampliado',desc:'Aumenta capacidade de estoque (+10 por nível).',base:120},
+  {id:'caixa',ico:'💰',name:'Caixa Registradora',desc:'Aumenta o preço de venda em +10% por nível.',base:180},
+  {id:'marketing',ico:'📣',name:'Marketing',desc:'Clientes chegam mais rápido e a fila é maior.',base:150},
+  {id:'copa',ico:'🥤',name:'Copa / Delivery',desc:'Mais mesas ativas e pedidos de delivery simultâneos.',base:200}
+];
+const STAFF=[
+  {id:'pizzaiolo',ico:'👨‍🍳',name:'Pizzaiolo',desc:'Cada contratado deixa 1 passo do preparo pronto.',base:250},
+  {id:'atendente',ico:'🤵',name:'Atendente',desc:'Atende clientes do balcão sozinho (1 a cada 12s).',base:300},
+  {id:'garcom',ico:'🧑‍🍳',name:'Garçom',desc:'Anota pedidos das mesas automaticamente.',base:350},
+  {id:'entregador',ico:'🛵',name:'Entregador (Motoboy)',desc:'Leva deliveries prontos automaticamente.',base:400}
+];
+
+function renderShop(tab){
+  if(tab==='stock'){
+    const cap=Game.getStockCapacity();
+    const items=Object.keys(Game.stock);
+    document.getElementById('shop-tab-stock').innerHTML=items.map(item=>{
+      const price=Game.prices[item]||2,qty=Game.stock[item]||0;
+      const ing=ING[item]||{icon:'❓',name:item};
+      return `<div class="shop-item"><div class="ico">${ing.icon}</div>
+        <div class="info"><div class="name">${ing.name}</div><div class="sub">R$ ${price.toFixed(2)}/un · Estoque: ${qty}/${cap}</div></div>
+        <button class="buy-btn" data-buy="${item}">+5<br><small>R$ ${(price*5).toFixed(2)}</small></button></div>`;
+    }).join('');
+  } else if(tab==='upgrade'){
+    document.getElementById('shop-tab-upgrade').innerHTML=UPGRADES.map(u=>{
+      const lvl=Game.upgrades[u.id]||0,price=Math.round(u.base*Math.pow(1.6,lvl)),maxed=lvl>=5;
+      return `<div class="upgrade-item"><div class="head"><div class="ico">${u.ico}</div><div class="name">${u.name}</div><div class="lvl">Nv ${lvl}/5</div></div>
+        <div class="desc">${u.desc}</div>
+        <div class="foot"><div class="price">${maxed?'MAX':'R$ '+price.toFixed(2)}</div>
+        <button class="buy-btn" data-upg="${u.id}" ${maxed?'disabled':''}>${maxed?'✓':'Comprar'}</button></div></div>`;
+    }).join('');
+  } else if(tab==='staff'){
+    document.getElementById('shop-tab-staff').innerHTML=STAFF.map(s=>{
+      const lvl=Game.staff[s.id]||0,price=Math.round(s.base*Math.pow(1.8,lvl)),maxed=lvl>=3;
+      return `<div class="upgrade-item"><div class="head"><div class="ico">${s.ico}</div><div class="name">${s.name}</div><div class="lvl">Contratados: ${lvl}/3</div></div>
+        <div class="desc">${s.desc}</div>
+        <div class="foot"><div class="price">${maxed?'MAX':'R$ '+price.toFixed(2)}</div>
+        <button class="buy-btn" data-staff="${s.id}" ${maxed?'disabled':''}>${maxed?'✓':'Contratar'}</button></div></div>`;
+    }).join('');
+  }
+}
+function noMoney(){showFloat('SEM DINHEIRO!',playerGroup.position,'loss');}
+function buyStock(item,qty){
+  const cost=(Game.prices[item]||2)*qty;
+  if(Game.state.money<cost){noMoney();return;}
+  Game.spendMoney(cost,false);
+  Game.addStock(item,qty);
+  renderShop('stock');Game.save();
+}
+function buyUpgrade(id){
+  const u=UPGRADES.find(x=>x.id===id);if(!u) return;
+  const lvl=Game.upgrades[id]||0;if(lvl>=5) return;
+  const price=Math.round(u.base*Math.pow(1.6,lvl));
+  if(Game.state.money<price){noMoney();return;}
+  Game.spendMoney(price,true);
+  Game.upgrades[id]++;
+  if(Game.upgrades[id]>=5) Game.unlockAchievement('upgrade_max');
+  // Efeitos visuais de upgrade
+  if(id==='forno'&&Game.upgrades.forno>=1) forno2.visible=true;
+  if(id==='bancada'&&Game.upgrades.bancada>=1) bancada2.visible=true;
+  renderShop('upgrade');Game.save();
+}
+function buyStaff(id){
+  const st=STAFF.find(x=>x.id===id);if(!st) return;
+  const lvl=Game.staff[id]||0;if(lvl>=3) return;
+  const price=Math.round(st.base*Math.pow(1.8,lvl));
+  if(Game.state.money<price){noMoney();return;}
+  Game.spendMoney(price,true);
+  Game.staff[id]++;
+  if(id==='garcom'&&Game.staff.garcom<=3) createWaiter(Game.staff.garcom-1);
+  if(id==='entregador'&&Game.staff.entregador>=1) createDeliveryBoy();
+  const allFull=Game.staff.pizzaiolo>=3&&Game.staff.atendente>=3&&Game.staff.garcom>=3&&Game.staff.entregador>=3;
+  if(allFull) Game.unlockAchievement('staff_full');
+  renderShop('staff');Game.save();
+}
+
+/* =====================================================================
+   CONQUISTAS E STATS
+===================================================================== */
+function renderAchievements(){
+  document.getElementById('ach-list').innerHTML=Object.values(Game.achievements).map(a=>`
+    <div class="ach-item ${a.unlocked?'unlocked':''}"><div class="ico">${a.icon}</div>
+      <div class="info"><div class="name">${a.name}</div><div class="desc">${a.desc}</div></div></div>`).join('');
+}
+function renderStats(){
+  const s=Game.stats,row=(l,v)=>`<div class="stat-row"><span class="lbl">${l}</span><span class="val">${v}</span></div>`;
+  document.getElementById('stats-content').innerHTML=
+    row('Dias jogados',s.daysPlayed)+row('Dia atual',Game.state.day)+
+    row('Clientes atendidos (total)',Game.state.totalServed)+row('Melhor dia (clientes)',s.bestDay)+
+    row('Dias perfeitos',s.perfectDays)+row('Clientes VIP servidos',s.vipServed)+
+    row('Servidos por atendente',s.autoServed)+row('Passos pré-prontos',s.autoCooked)+
+    row('Entregas (delivery)',s.deliveries)+row('Mesas atendidas',s.tablesServed)+
+    row('Pizzas meio a meio',s.halfPizzas)+
+    row('Dinheiro total ganho',fmt(s.totalEarned))+row('Dinheiro total gasto',fmt(s.totalSpent))+
+    row('Clientes perdidos (total)',Game.state.totalLost)+
+    row('Conquistas',Object.values(Game.achievements).filter(a=>a.unlocked).length+'/'+Object.keys(Game.achievements).length);
+}
+
+/* =====================================================================
+   HANDLERS
+===================================================================== */
+document.getElementById('menu-btn').addEventListener('click',()=>{
+  const s=Game.state,ev=Game.getEvent();
+  document.getElementById('menu-day').textContent=s.day;
+  document.getElementById('menu-time').textContent=fmtTime(s.timeLeft);
+  document.getElementById('menu-money').textContent=fmt(s.money);
+  document.getElementById('menu-rep').textContent=Math.round(s.reputation);
+  document.getElementById('menu-served').textContent=s.served;
+  document.getElementById('menu-goal').textContent=fmt(s.goal);
+  document.getElementById('menu-earned').textContent=fmt(s.earned);
+  document.getElementById('menu-event').textContent=ev.icon+' '+ev.name;
+  document.getElementById('menu-deliveries').textContent=deliveries.filter(d=>d.state!=='done').length;
+  openModal('menu-modal');
+});
+document.getElementById('menu-resume').addEventListener('click',()=>closeModal('menu-modal'));
+document.getElementById('menu-stats').addEventListener('click',()=>{closeModal('menu-modal');renderStats();openModal('stats-modal');});
+document.getElementById('menu-end').addEventListener('click',()=>{
+  if(confirm('Encerrar o expediente agora?')){closeModal('menu-modal');Game.endShift();}
+});
+document.getElementById('menu-restart').addEventListener('click',()=>{
+  if(confirm('Reiniciar o dia?')){closeModal('menu-modal');Game.restartDay();}
+});
+
+document.getElementById('shop-btn').addEventListener('click',()=>{renderShop('stock');openModal('shop-modal');});
+document.getElementById('shop-close').addEventListener('click',()=>closeModal('shop-modal'));
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const t=tab.dataset.tab;
+    ['stock','upgrade','staff'].forEach(k=>document.getElementById('shop-tab-'+k).style.display=(t===k?'block':'none'));
+    renderShop(t);
+  });
+});
+document.getElementById('shop-modal').addEventListener('click',e=>{
+  const b=e.target.closest('.buy-btn');if(!b) return;
+  if(b.dataset.buy) buyStock(b.dataset.buy,5);
+  else if(b.dataset.upg) buyUpgrade(b.dataset.upg);
+  else if(b.dataset.staff) buyStaff(b.dataset.staff);
+});
+document.getElementById('ach-btn').addEventListener('click',()=>{renderAchievements();openModal('ach-modal');});
+document.getElementById('ach-close').addEventListener('click',()=>closeModal('ach-modal'));
+document.getElementById('stats-close').addEventListener('click',()=>closeModal('stats-modal'));
+document.getElementById('call-btn').addEventListener('click',()=>{
+  // Central de chamadas: mostra resumo
+  const q=clients.filter(c=>c.userData.type==='queue'&&c.userData.state==='waiting').length;
+  const t=clients.filter(c=>c.userData.type==='table').length;
+  const d=deliveries.length;
+  notify(`🔔 Balcão: ${q} · Salão: ${t} · Delivery: ${d}`,true);
+});
+document.getElementById('next-day-btn').addEventListener('click',()=>Game.nextDay());
+document.getElementById('restart-all-btn').addEventListener('click',()=>Game.restartAll());
+
+function onResize(){
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+}
+window.addEventListener('resize',onResize);
+window.addEventListener('orientationchange',()=>setTimeout(onResize,200));
+window.addEventListener('pagehide',()=>Game.save());
+document.addEventListener('visibilitychange',()=>{if(document.hidden) Game.save();});
+
+/* =====================================================================
+   START
+===================================================================== */
+function refreshWelcome(){
+  const s=Game.state,info=document.getElementById('save-info'),btn=document.getElementById('start-btn');
+  if(s.inShift){info.textContent='💾 Expediente em andamento · Dia '+s.day+' · '+fmt(s.money);btn.textContent='▶ CONTINUAR';}
+  else if(s.shiftDone){info.textContent='💾 Dia '+s.day+' concluído · '+fmt(s.money);btn.textContent='▶ PRÓXIMO DIA';}
+  else if(s.day>1||s.totalServed>0){info.textContent='💾 Save encontrado · Dia '+s.day+' · '+fmt(s.money);btn.textContent='▶ CONTINUAR';}
+  else {info.textContent='';btn.textContent='▶ JOGAR';}
+}
+
+Game.load();
+updateHUD();updateStockBadge();updateAchBadge();updateWeatherBadge();applyEnv();
+refreshWelcome();
+
+document.getElementById('start-btn').addEventListener('click',()=>{
+  if(Tutorial.active) Tutorial.finish();
+  const w=document.getElementById('welcome');
+  w.style.opacity='0';
+  setTimeout(()=>{w.style.display='none';},400);
+  const s=Game.state;
+  if(s.inShift) Game.resumeShift();
+  else if(s.shiftDone) Game.nextDay();
+  else Game.startShift();
+});
+document.getElementById('tutorial-btn').addEventListener('click',()=>Tutorial.start());
+
+// cria garçons iniciais se já contratados
+for(let i=0;i<Game.staff.garcom;i++) createWaiter(i);
+if(Game.staff.entregador>0) createDeliveryBoy();
+
+animate();
+</script>
+</body>
+</html>
