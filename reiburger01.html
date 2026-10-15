@@ -1,0 +1,2523 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Rei Burguers — v9</title>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+    html,body { width:100%; height:100%; overflow:hidden; background:#121214; color:#e1e1e6; touch-action:none; overscroll-behavior:none; position:fixed; }
+    #game-container { position:fixed; inset:0; background:#000; overflow:hidden; }
+    #game-container canvas { width:100%; height:100%; display:block; }
+
+    .hud { position:absolute; top:calc(env(safe-area-inset-top,0px) + 8px); left:8px; right:8px; display:flex; justify-content:space-between; gap:4px; pointer-events:none; z-index:10; }
+    .hud-box { background:rgba(0,0,0,.78); padding:4px 6px; border-radius:8px; border-left:3px solid #f5b301; backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); min-width:0; flex:1; }
+    .hud-box .label { font-size:.5rem; color:#a8a8b3; text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
+    .hud-box .value { font-size:.78rem; color:#f5b301; font-weight:bold; line-height:1.1; white-space:nowrap; }
+    .hud-box.rep .value { color:#4ade80; }
+    .hud-box.time .value.low { color:#f87171; animation:pulse 1s infinite; }
+
+    .top-actions { position:absolute; top:calc(env(safe-area-inset-top,0px) + 58px); left:8px; z-index:20; display:flex; gap:6px; }
+    .top-btn { width:38px; height:38px; border-radius:50%; background:rgba(0,0,0,.75); border:1px solid rgba(245,179,1,.5); color:#f5b301; font-size:1rem; display:flex; align-items:center; justify-content:center; touch-action:none; cursor:pointer; position:relative; }
+    .top-btn:active { transform:scale(.9); }
+    .top-btn .badge { position:absolute; top:-4px; right:-4px; background:#f87171; color:#fff; font-size:.55rem; font-weight:bold; min-width:16px; height:16px; border-radius:8px; padding:0 4px; display:flex; align-items:center; justify-content:center; }
+    .top-btn .badge.new { background:#4ade80; animation:pulse 1s infinite; }
+
+    #cam-btn, #audio-btn, #vibe-btn { position:absolute; top:calc(env(safe-area-inset-top,0px) + 58px); width:38px; height:38px; border-radius:50%; background:rgba(0,0,0,.75); border:1px solid rgba(245,179,1,.5); color:#f5b301; font-size:1rem; display:flex; align-items:center; justify-content:center; touch-action:none; cursor:pointer; z-index:20; }
+    #cam-btn { right:8px; }
+    #audio-btn { right:52px; }
+    #vibe-btn { right:96px; }
+    #cam-btn:active, #audio-btn:active, #vibe-btn:active { transform:scale(.9); }
+    #audio-btn.muted, #vibe-btn.muted { color:#666; border-color:#444; }
+
+    #weather-badge { position:absolute; top:calc(env(safe-area-inset-top,0px) + 64px); left:50%; transform:translateX(-50%); z-index:12; background:rgba(0,0,0,.85); border:1px solid rgba(245,179,1,.5); padding:4px 10px; border-radius:16px; font-size:.7rem; color:#f5b301; font-weight:bold; display:none; align-items:center; gap:5px; white-space:nowrap; max-width:calc(100% - 200px); overflow:hidden; text-overflow:ellipsis; pointer-events:none; }
+    #weather-badge.show { display:flex; }
+    #combo-badge { position:absolute; top:calc(env(safe-area-inset-top,0px) + 96px); left:50%; transform:translateX(-50%); z-index:12; background:rgba(0,0,0,.85); border:1px solid #4ade80; padding:4px 10px; border-radius:16px; font-size:.7rem; color:#4ade80; font-weight:bold; display:none; white-space:nowrap; pointer-events:none; max-width:calc(100% - 40px); overflow:hidden; text-overflow:ellipsis; }
+
+    #day-banner { position:absolute; top:26%; left:50%; transform:translateX(-50%); z-index:40; opacity:0; pointer-events:none; text-align:center; background:rgba(0,0,0,.88); border:2px solid #f5b301; border-radius:14px; padding:12px 18px; max-width:88%; }
+    #day-banner .t { font-size:1.1rem; color:#f5b301; font-weight:bold; }
+    #day-banner .e { font-size:.8rem; color:#e1e1e6; margin-top:4px; }
+    #day-banner .g { font-size:.72rem; color:#4ade80; margin-top:4px; }
+    #day-banner.show { animation:bannerAnim 3.8s ease forwards; }
+    @keyframes bannerAnim { 0%{opacity:0;transform:translate(-50%,-10px);} 10%,80%{opacity:1;transform:translate(-50%,0);} 100%{opacity:0;transform:translate(-50%,0);} }
+
+    #joystick-zone { position:absolute; bottom:calc(env(safe-area-inset-bottom,0px) + 18px); left:18px; width:130px; height:130px; z-index:20; touch-action:none; cursor:pointer; }
+    #joystick-base { position:absolute; inset:0; border-radius:50%; background:radial-gradient(circle, rgba(245,179,1,.12) 0%, rgba(0,0,0,.5) 70%); border:2px solid rgba(245,179,1,.5); box-shadow:0 0 20px rgba(0,0,0,.6); }
+    #joystick-stick { position:absolute; top:50%; left:50%; width:56px; height:56px; margin:-28px 0 0 -28px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #ffd968, #f5b301 60%, #a87a00); box-shadow:0 4px 12px rgba(0,0,0,.7); pointer-events:none; will-change:transform; }
+
+    #action-btn { position:absolute; bottom:calc(env(safe-area-inset-bottom,0px) + 28px); right:20px; width:86px; height:86px; border-radius:50%; z-index:20; background:radial-gradient(circle at 35% 30%, #ffd968, #f5b301 55%, #a87a00); border:3px solid rgba(255,255,255,.25); box-shadow:0 6px 20px rgba(0,0,0,.7), 0 0 0 6px rgba(245,179,1,.15); display:flex; align-items:center; justify-content:center; font-size:1.8rem; color:#121214; touch-action:none; cursor:pointer; transition:transform .08s; }
+    #action-btn.active { transform:scale(.9); }
+    #action-btn.disabled { opacity:.3; filter:grayscale(.8); }
+    #action-btn.door { background:radial-gradient(circle at 35% 30%, #6cffb0, #4ade80 55%, #166534); font-size:1.4rem; }
+
+    #kitchen-panel { position:absolute; bottom:calc(env(safe-area-inset-bottom,0px) + 130px); left:50%; transform:translateX(-50%); display:none; flex-direction:column; align-items:center; gap:8px; z-index:25; background:rgba(0,0,0,.88); padding:10px; border-radius:12px; border:1px solid rgba(245,179,1,.4); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+    #kit-title { font-size:.6rem; color:#a8a8b3; text-transform:uppercase; letter-spacing:.5px; }
+    #kit-steps { display:flex; gap:6px; }
+    #kit-steps .slot { width:38px; height:38px; border-radius:8px; border:2px dashed #555; display:flex; align-items:center; justify-content:center; font-size:1.2rem; opacity:.55; }
+    #kit-steps .slot.next { border:2px solid #f5b301; opacity:1; animation:pulse 1s infinite; }
+    #kit-steps .slot.done { border:2px solid #4ade80; background:rgba(74,222,128,.18); opacity:1; }
+    #kit-btns { display:flex; gap:8px; }
+    #kitchen-panel .kit-btn { width:60px; height:60px; border-radius:10px; background:linear-gradient(180deg,#3a3a3e,#232326); border:1px solid rgba(245,179,1,.4); color:#e1e1e6; font-size:1.5rem; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; touch-action:none; transition:transform .08s; }
+    #kitchen-panel .kit-btn:active { transform:scale(.9); }
+    #kitchen-panel .kit-btn .lbl { font-size:.5rem; color:#a8a8b3; margin-top:2px; }
+    #kit-cancel { font-size:.65rem; color:#a8a8b3; border:1px solid #555; border-radius:12px; padding:3px 12px; cursor:pointer; touch-action:none; }
+
+    #hint { position:absolute; left:50%; bottom:calc(env(safe-area-inset-bottom,0px) + 200px); transform:translateX(-50%); background:rgba(245,179,1,.95); color:#121214; padding:7px 16px; border-radius:20px; font-size:.8rem; font-weight:bold; white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.5); display:none; z-index:15; pointer-events:none; }
+
+    #order-bubble { position:absolute; top:calc(env(safe-area-inset-top,0px) + 130px); left:50%; transform:translateX(-50%); background:rgba(0,0,0,.9); color:#fff; padding:8px 14px; border-radius:14px; border:2px solid #f5b301; display:none; z-index:15; box-shadow:0 6px 20px rgba(0,0,0,.6); max-width:90%; text-align:center; }
+    #order-bubble.vip { border-color:#a78bfa; box-shadow:0 6px 20px rgba(167,139,250,.5); }
+    #order-bubble .ttl { font-size:.6rem; color:#a8a8b3; text-transform:uppercase; letter-spacing:.5px; }
+    #order-bubble.vip .ttl { color:#a78bfa; }
+    #order-bubble .itm { font-size:.95rem; color:#f5b301; font-weight:bold; margin-top:2px; }
+    #order-bubble.vip .itm { color:#c4b5fd; }
+    #order-bubble .prc { font-size:.75rem; color:#4ade80; margin-top:1px; }
+    #order-bubble .req { font-size:.65rem; color:#c4c4cc; margin-top:4px; }
+
+    .float-msg { position:absolute; font-weight:bold; font-size:1rem; text-shadow:0 2px 6px rgba(0,0,0,.9); pointer-events:none; z-index:30; animation:floatUp 1.6s ease-out forwards; white-space:nowrap; }
+    .float-msg.gain { color:#4ade80; }
+    .float-msg.loss { color:#f87171; }
+    .float-msg.info { color:#f5b301; }
+    .float-msg.vip { color:#a78bfa; }
+    @keyframes floatUp { 0%{opacity:1;transform:translate(-50%,0) scale(.8);} 30%{opacity:1;transform:translate(-50%,-30px) scale(1.15);} 100%{opacity:0;transform:translate(-50%,-90px) scale(1);} }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+    @keyframes popIn { 0%{transform:scale(.8);opacity:0;} 100%{transform:scale(1);opacity:1;} }
+
+    .patience-bar { position:absolute; width:36px; height:5px; background:rgba(0,0,0,.7); border:1px solid #000; border-radius:3px; pointer-events:none; z-index:11; overflow:hidden; }
+    .patience-fill { height:100%; transition:width .15s linear, background .3s; }
+
+    #tutorial-overlay { position:absolute; inset:0; z-index:105; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:20px; text-align:center; pointer-events:none; }
+    #tutorial-overlay.show { display:flex; }
+    #tutorial-box { background:rgba(18,18,20,.98); border:2px solid #f5b301; border-radius:16px; padding:18px 20px; max-width:340px; box-shadow:0 10px 40px rgba(0,0,0,.8); pointer-events:auto; animation:popIn .3s ease-out; }
+    #tutorial-box .ttl { font-size:.65rem; color:#f5b301; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+    #tutorial-box .msg { font-size:.9rem; color:#e1e1e6; line-height:1.5; margin-bottom:14px; }
+    #tutorial-box .msg .k { background:#f5b301; color:#121214; font-weight:bold; padding:2px 8px; border-radius:6px; font-size:.8rem; margin:0 2px; display:inline-block; }
+    #tutorial-box .row { display:flex; gap:8px; justify-content:center; }
+    #tutorial-box button { background:linear-gradient(180deg,#ffd968,#f5b301); color:#121214; border:none; padding:10px 24px; border-radius:30px; font-size:.85rem; font-weight:bold; cursor:pointer; }
+    #tutorial-box button.skip { background:transparent; border:1px solid #555; color:#a8a8b3; }
+    #tutorial-box button:active { transform:scale(.95); }
+    #tutorial-box .progress { display:flex; gap:4px; justify-content:center; margin-bottom:12px; }
+    #tutorial-box .dot { width:6px; height:6px; border-radius:50%; background:#333; }
+    #tutorial-box .dot.active { background:#f5b301; }
+    #tutorial-box .dot.done { background:#4ade80; }
+
+    #welcome { position:absolute; inset:0; z-index:100; background:rgba(18,18,20,.97); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; transition:opacity .4s; overflow-y:auto; }
+    #welcome h1 { color:#f5b301; font-size:1.5rem; letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
+    #welcome p { color:#a8a8b3; font-size:.8rem; margin-bottom:16px; max-width:340px; line-height:1.5; }
+    #welcome .icon { font-size:2.8rem; margin-bottom:8px; }
+    #welcome .name-row { display:flex; gap:6px; margin-bottom:14px; width:100%; max-width:340px; }
+    #welcome .name-row input { flex:1; background:rgba(255,255,255,.06); border:1px solid #333; color:#e1e1e6; padding:10px 12px; border-radius:10px; font-size:.85rem; outline:none; text-align:center; }
+    #welcome .name-row button { background:#f5b301; color:#121214; border:none; border-radius:10px; padding:0 14px; font-weight:bold; cursor:pointer; }
+    #welcome .btn-row { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+    #start-btn, #tutorial-btn { background:linear-gradient(180deg,#ffd968,#f5b301); color:#121214; border:none; padding:14px 32px; border-radius:40px; font-size:.95rem; font-weight:bold; letter-spacing:.5px; box-shadow:0 6px 20px rgba(245,179,1,.4); cursor:pointer; }
+    #tutorial-btn { background:transparent; border:2px solid #f5b301; color:#f5b301; box-shadow:none; }
+    #start-btn:active, #tutorial-btn:active { transform:scale(.95); }
+    #welcome .save-tools { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; justify-content:center; }
+    #welcome .save-tools button { background:transparent; border:1px solid #444; color:#a8a8b3; border-radius:8px; padding:6px 12px; font-size:.7rem; cursor:pointer; }
+    #welcome .tips { margin-top:16px; display:flex; flex-direction:column; gap:6px; font-size:.72rem; color:#c4c4cc; max-width:340px; width:100%; }
+    #welcome .tips .tip { display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.05); padding:6px 12px; border-radius:8px; }
+    #welcome .tips .tip .k { background:#f5b301; color:#121214; font-weight:bold; padding:2px 6px; border-radius:4px; font-size:.6rem; }
+    #welcome .save-info { margin-top:12px; font-size:.7rem; color:#f5b301; }
+    #welcome .version { margin-top:16px; font-size:.6rem; color:#555; }
+
+    .modal { position:absolute; inset:0; z-index:110; background:rgba(18,18,20,.96); display:none; flex-direction:column; align-items:center; justify-content:flex-start; padding:20px; text-align:center; overflow-y:auto; }
+    .modal.open { display:flex; }
+    .modal h2 { color:#f5b301; font-size:1.3rem; margin-bottom:14px; flex-shrink:0; }
+    .modal .stat { display:flex; justify-content:space-between; width:100%; max-width:300px; padding:6px 0; border-bottom:1px solid #29292e; font-size:.85rem; margin:0 auto; }
+    .modal .stat .v { color:#4ade80; font-weight:bold; }
+    .modal .stat .v.neg { color:#f87171; }
+    .modal .stat .v.warn { color:#f5b301; }
+    .modal button { margin-top:10px; background:linear-gradient(180deg,#ffd968,#f5b301); color:#121214; border:none; padding:12px 32px; border-radius:40px; font-size:.9rem; font-weight:bold; cursor:pointer; }
+    .modal button.sec { background:transparent; border:1px solid #f5b301; color:#f5b301; }
+    .modal button:active { transform:scale(.95); }
+    .modal .row { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:12px; }
+    .modal .content { width:100%; max-width:380px; flex:1; }
+    .modal textarea { width:100%; min-height:120px; background:rgba(0,0,0,.5); color:#e1e1e6; border:1px solid #333; border-radius:8px; padding:8px; font-size:.7rem; font-family:monospace; resize:none; }
+
+    .shop-item, .upgrade-item { background:rgba(255,255,255,.04); border:1px solid #29292e; border-radius:10px; padding:10px 12px; margin-bottom:8px; width:100%; display:flex; align-items:center; gap:10px; text-align:left; }
+    .shop-item .ico, .upgrade-item .head .ico { font-size:1.6rem; }
+    .shop-item .info { flex:1; min-width:0; }
+    .shop-item .name { font-size:.85rem; color:#e1e1e6; font-weight:bold; }
+    .shop-item .sub { font-size:.7rem; color:#a8a8b3; margin-top:2px; }
+    .shop-item .buy-btn, .upgrade-item .buy-btn { background:linear-gradient(180deg,#ffd968,#f5b301); color:#121214; border:none; border-radius:8px; padding:8px 12px; font-size:.75rem; font-weight:bold; cursor:pointer; min-width:70px; margin-top:0; }
+    .shop-item .buy-btn:active, .upgrade-item .buy-btn:active { transform:scale(.95); }
+    .shop-item .buy-btn:disabled, .upgrade-item .buy-btn:disabled { opacity:.4; }
+    .upgrade-item { display:block; }
+    .upgrade-item .head { display:flex; align-items:center; gap:10px; margin-bottom:6px; }
+    .upgrade-item .head .name { font-size:.9rem; color:#f5b301; font-weight:bold; flex:1; }
+    .upgrade-item .head .lvl { font-size:.7rem; color:#4ade80; font-weight:bold; }
+    .upgrade-item .desc { font-size:.72rem; color:#c4c4cc; margin-bottom:8px; line-height:1.4; }
+    .upgrade-item .foot { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; }
+    .upgrade-item .price { font-size:.8rem; color:#f5b301; font-weight:bold; }
+
+    .tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; justify-content:center; }
+    .tab { padding:8px 12px; border-radius:20px; font-size:.7rem; font-weight:bold; background:rgba(255,255,255,.05); color:#a8a8b3; border:1px solid #29292e; cursor:pointer; }
+    .tab.active { background:#f5b301; color:#121214; border-color:#f5b301; }
+
+    .ach-item { background:rgba(255,255,255,.04); border:1px solid #29292e; border-radius:10px; padding:10px 12px; margin-bottom:8px; display:flex; align-items:center; gap:10px; text-align:left; }
+    .ach-item.unlocked { border-color:#ffd700; background:rgba(255,215,0,.08); }
+    .ach-item.plat { border-color:#e5e4e2; background:linear-gradient(135deg, rgba(229,228,226,.15), rgba(192,192,192,.08)); }
+    .ach-item .ico { font-size:1.6rem; filter:grayscale(1); opacity:.4; }
+    .ach-item.unlocked .ico { filter:none; opacity:1; }
+    .ach-item .info { flex:1; }
+    .ach-item .name { font-size:.85rem; color:#e1e1e6; font-weight:bold; }
+    .ach-item.unlocked .name { color:#ffd700; }
+    .ach-item.plat .name { color:#e5e4e2; }
+    .ach-item .desc { font-size:.7rem; color:#a8a8b3; margin-top:2px; }
+    .stat-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #29292e; font-size:.85rem; }
+    .stat-row .lbl { color:#a8a8b3; }
+    .stat-row .val { color:#f5b301; font-weight:bold; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+  <div id="game-container">
+    <div class="hud">
+      <div class="hud-box"><div class="label">💰 Dinheiro</div><div class="value" id="hud-money">R$ 100</div></div>
+      <div class="hud-box rep"><div class="label">⭐ Rep</div><div class="value" id="hud-rep">50</div></div>
+      <div class="hud-box"><div class="label">👥 Atend.</div><div class="value" id="hud-served">0</div></div>
+      <div class="hud-box"><div class="label">🎯 Meta</div><div class="value" id="hud-goal">R$ 160</div></div>
+      <div class="hud-box time"><div class="label">⏱ Tempo</div><div class="value" id="hud-time">3:00</div></div>
+    </div>
+
+    <div id="weather-badge"><span id="weather-icon">☀️</span><span id="weather-text">Dia normal</span></div>
+    <div id="combo-badge">🎁 Combo do dia: <span id="combo-text">—</span></div>
+    <div id="day-banner"></div>
+
+    <div class="top-actions">
+      <div class="top-btn" id="menu-btn">☰</div>
+      <div class="top-btn" id="shop-btn">🛒<span class="badge" id="stock-badge" style="display:none">!</span></div>
+      <div class="top-btn" id="ach-btn">🏆<span class="badge new" id="ach-badge" style="display:none">!</span></div>
+    </div>
+
+    <div id="vibe-btn">📳</div>
+    <div id="audio-btn">🔊</div>
+    <div id="cam-btn">🎥</div>
+
+    <div id="order-bubble">
+      <div class="ttl">Pedido</div>
+      <div class="itm" id="order-item">Hambúrguer</div>
+      <div class="prc" id="order-price">R$ 25,00</div>
+      <div class="req" id="order-req"></div>
+    </div>
+
+    <div id="joystick-zone">
+      <div id="joystick-base"></div>
+      <div id="joystick-stick"></div>
+    </div>
+
+    <div id="kitchen-panel">
+      <div id="kit-title">Monte o pedido na ordem</div>
+      <div id="kit-steps"></div>
+      <div id="kit-btns">
+        <div class="kit-btn" data-ing="carne">🥩<span class="lbl">CARNE</span></div>
+        <div class="kit-btn" data-ing="queijo">🧀<span class="lbl">QUEIJO</span></div>
+        <div class="kit-btn" data-ing="alface">🥬<span class="lbl">ALFACE</span></div>
+      </div>
+      <div id="kit-cancel">✖ Cancelar</div>
+    </div>
+
+    <div id="action-btn">🍔</div>
+    <div id="hint">Aproxime-se do cliente</div>
+
+    <div id="tutorial-overlay">
+      <div id="tutorial-box">
+        <div class="progress" id="tutorial-progress"></div>
+        <div class="ttl" id="tutorial-ttl">Passo 1</div>
+        <div class="msg" id="tutorial-msg">Bem-vindo ao Rei Burguers!</div>
+        <div class="row">
+          <button class="skip" id="tutorial-skip">Pular</button>
+          <button id="tutorial-next">Continuar ▶</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="welcome">
+      <div class="icon">👑🍔</div>
+      <h1 id="welcome-title">Rei Burguers</h1>
+      <p>Simulador de dono de lanchonete. Estoque, upgrades, equipe, eventos e conquistas — cada expediente tem tempo e meta.</p>
+      <div class="name-row">
+        <input id="shop-name-input" type="text" maxlength="20" placeholder="Nome da lanchonete">
+        <button id="shop-name-save">✓</button>
+      </div>
+      <div class="btn-row">
+        <button id="start-btn">▶ JOGAR</button>
+        <button id="tutorial-btn">📖 TUTORIAL</button>
+      </div>
+      <div class="save-tools">
+        <button id="export-btn">📤 Exportar save</button>
+        <button id="import-btn">📥 Importar save</button>
+      </div>
+      <div class="tips">
+        <div class="tip"><span class="k">JOYSTICK</span> Mover o personagem</div>
+        <div class="tip"><span class="k">ARRASTE</span> Girar a câmera</div>
+        <div class="tip"><span class="k">🍔</span> Atender / Cozinhar</div>
+        <div class="tip"><span class="k">🚪</span> Entre no trailer pela porta lateral</div>
+        <div class="tip"><span class="k">🚌</span> Ônibus traz clientes ao ponto</div>
+      </div>
+      <div class="save-info" id="save-info"></div>
+      <div class="version">v9.0</div>
+    </div>
+
+    <div class="modal" id="menu-modal">
+      <h2>📋 Menu</h2>
+      <div class="content">
+        <div class="stat"><span>Dia</span><span class="v" id="menu-day">1</span></div>
+        <div class="stat"><span>Tempo restante</span><span class="v" id="menu-time">3:00</span></div>
+        <div class="stat"><span>Dinheiro</span><span class="v" id="menu-money">R$ 100,00</span></div>
+        <div class="stat"><span>Reputação</span><span class="v" id="menu-rep">50</span></div>
+        <div class="stat"><span>Atendidos hoje</span><span class="v" id="menu-served">0</span></div>
+        <div class="stat"><span>Meta do dia</span><span class="v warn" id="menu-goal">R$ 160,00</span></div>
+        <div class="stat"><span>Ganho hoje</span><span class="v" id="menu-earned">R$ 0,00</span></div>
+        <div class="stat"><span>Evento do dia</span><span class="v" id="menu-event">☀️ Normal</span></div>
+        <div class="stat"><span>Conquistas</span><span class="v" id="menu-ach">0/13</span></div>
+      </div>
+      <div class="row">
+        <button class="sec" id="menu-resume">▶ Continuar</button>
+        <button class="sec" id="menu-stats">📊 Estatísticas</button>
+      </div>
+      <div class="row">
+        <button class="sec" id="menu-end">⏹ Encerrar expediente</button>
+        <button class="sec" id="menu-restart">🔄 Reiniciar dia</button>
+      </div>
+      <div class="row">
+        <button class="sec" id="menu-export">📤 Exportar</button>
+        <button class="sec" id="menu-import">📥 Importar</button>
+      </div>
+    </div>
+
+    <div class="modal" id="shop-modal">
+      <h2>🛒 Loja</h2>
+      <div class="tabs">
+        <div class="tab active" data-tab="stock">Estoque</div>
+        <div class="tab" data-tab="upgrade">Upgrades</div>
+        <div class="tab" data-tab="staff">Equipe</div>
+      </div>
+      <div class="content">
+        <div id="shop-tab-stock"></div>
+        <div id="shop-tab-upgrade" style="display:none"></div>
+        <div id="shop-tab-staff" style="display:none"></div>
+      </div>
+      <button class="sec" id="shop-close" style="margin-top:16px;">Fechar</button>
+    </div>
+
+    <div class="modal" id="ach-modal">
+      <h2>🏆 Conquistas</h2>
+      <div class="content" id="ach-list"></div>
+      <button class="sec" id="ach-close" style="margin-top:16px;">Fechar</button>
+    </div>
+
+    <div class="modal" id="stats-modal">
+      <h2>📊 Estatísticas</h2>
+      <div class="content" id="stats-content"></div>
+      <button class="sec" id="stats-close" style="margin-top:16px;">Fechar</button>
+    </div>
+
+    <div class="modal" id="export-modal">
+      <h2>📤 Exportar save</h2>
+      <p style="color:#a8a8b3;font-size:.75rem;margin-bottom:10px;">Copie o texto abaixo e guarde em local seguro.</p>
+      <div class="content"><textarea id="export-text" readonly></textarea></div>
+      <div class="row">
+        <button class="sec" id="export-copy">📋 Copiar</button>
+        <button class="sec" id="export-close">Fechar</button>
+      </div>
+    </div>
+
+    <div class="modal" id="import-modal">
+      <h2>📥 Importar save</h2>
+      <p style="color:#a8a8b3;font-size:.75rem;margin-bottom:10px;">Cole o JSON do save abaixo.</p>
+      <div class="content"><textarea id="import-text" placeholder='{"state":{...}, ...}'></textarea></div>
+      <div class="row">
+        <button class="sec" id="import-apply">✅ Aplicar</button>
+        <button class="sec" id="import-close">Fechar</button>
+      </div>
+    </div>
+
+    <div class="modal" id="end-day">
+      <h2>🌙 Fim do Expediente</h2>
+      <div class="content">
+        <div class="stat"><span>Clientes atendidos</span><span class="v" id="end-served">0</span></div>
+        <div class="stat"><span>Ganhos brutos</span><span class="v" id="end-earned">R$ 0,00</span></div>
+        <div class="stat"><span>Custos de estoque</span><span class="v neg" id="end-costs">R$ 0,00</span></div>
+        <div class="stat"><span>Salários pagos</span><span class="v neg" id="end-wages">R$ 0,00</span></div>
+        <div class="stat"><span>Perdas (desistências)</span><span class="v neg" id="end-lost">R$ 0,00</span></div>
+        <div class="stat"><span>Lucro do dia</span><span class="v" id="end-profit">R$ 0,00</span></div>
+        <div class="stat"><span>Meta</span><span class="v" id="end-goal-status">✅</span></div>
+        <div class="stat"><span>Reputação</span><span class="v" id="end-rep">50</span></div>
+        <div id="end-bonus" style="color:#4ade80;font-size:.85rem;margin-top:10px;display:none"></div>
+        <div id="end-event-info" style="color:#f5b301;font-size:.75rem;margin-top:8px;"></div>
+      </div>
+      <button id="next-day-btn" style="margin-top:18px;">▶ PRÓXIMO DIA</button>
+    </div>
+
+    <div class="modal" id="game-over">
+      <h2 style="color:#f87171">💔 Falência!</h2>
+      <p style="color:#c4c4cc;margin-bottom:14px;font-size:.85rem;">Você ficou sem dinheiro e sem estoque. O Rei Burguers fechou as portas.</p>
+      <div class="content">
+        <div class="stat"><span>Dias sobrevividos</span><span class="v" id="go-days">1</span></div>
+        <div class="stat"><span>Total de clientes</span><span class="v" id="go-served">0</span></div>
+        <div class="stat"><span>Dinheiro final</span><span class="v" id="go-money">R$ 0,00</span></div>
+      </div>
+      <button id="restart-all-btn" style="margin-top:18px;">🔄 RECOMEÇAR</button>
+    </div>
+  </div>
+
+  <script>
+  // =====================================================================
+  // ÁUDIO — trilha estilo Sonic Pi
+  // =====================================================================
+  const Audio = {
+    ctx: null, master: null, musicGain: null, sfxGain: null, ambientGain: null,
+    muted: false, musicTimer: null, drumTimer: null,
+    sizzleNode: null, sizzleGain: null,
+    fridgeHum: null, rainNode: null, rainGain: null, crowdNode: null, crowdGain: null,
+    currentAmbient: null,
+    musicBeat: 0, musicChordIdx: 0,
+    chordProgression: [
+      [261.63, 329.63, 392.00],   // C
+      [293.66, 349.23, 440.00],   // Dm
+      [329.63, 392.00, 493.88],   // Em
+      [349.23, 440.00, 523.25]    // F
+    ],
+
+    init() {
+      if (this.ctx) return;
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new Ctx();
+        this.master = this.ctx.createGain(); this.master.gain.value = 0.9; this.master.connect(this.ctx.destination);
+        this.musicGain = this.ctx.createGain(); this.musicGain.gain.value = 0.22; this.musicGain.connect(this.master);
+        this.sfxGain = this.ctx.createGain(); this.sfxGain.gain.value = 0.6; this.sfxGain.connect(this.master);
+        this.ambientGain = this.ctx.createGain(); this.ambientGain.gain.value = 0.35; this.ambientGain.connect(this.master);
+        this.startBaseAmbient();
+        this.startMusic();
+        this.startDrums();
+      } catch (e) { console.warn('Audio init falhou', e); }
+    },
+    resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+    setMuted(m) {
+      this.muted = m;
+      if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.ctx.currentTime, 0.05);
+    },
+    now() { return this.ctx ? this.ctx.currentTime : 0; },
+
+    blip(freq, dur, type, vol, slideTo) {
+      if (!this.ctx || this.muted) return;
+      const t = this.now();
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(freq, t);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), t + dur);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vol ?? 0.3, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(this.sfxGain);
+      o.start(t); o.stop(t + dur + 0.05);
+    },
+    noise(dur, vol, filterFreq, q) {
+      if (!this.ctx || this.muted) return;
+      const t = this.now();
+      const bufSize = Math.floor(this.ctx.sampleRate * dur);
+      const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
+      const src = this.ctx.createBufferSource(); src.buffer = buf;
+      const filt = this.ctx.createBiquadFilter(); filt.type = 'bandpass'; filt.frequency.value = filterFreq || 1000; filt.Q.value = q || 1;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(vol ?? 0.3, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(filt); filt.connect(g); g.connect(this.sfxGain);
+      src.start(t); src.stop(t + dur + 0.05);
+    },
+
+    voiceHappy() {
+      const base = 300 + Math.random() * 200;
+      this.blip(base, 0.08, 'triangle', 0.15, base * 1.4);
+      setTimeout(() => this.blip(base * 1.3, 0.12, 'triangle', 0.13, base * 1.6), 60);
+    },
+    voiceNeutral() { const base = 250 + Math.random() * 150; this.blip(base, 0.09, 'sine', 0.12, base * 1.1); },
+    voiceAngry() { const base = 180 + Math.random() * 80; this.blip(base, 0.15, 'sawtooth', 0.14, base * 0.6); },
+    voiceGreeting() { const base = 350 + Math.random() * 150; this.blip(base, 0.1, 'sine', 0.13, base * 1.2); },
+
+    step() { this.noise(0.08, 0.12, 250, 1.5); },
+    serve() {
+      this.blip(880, 0.08, 'triangle', 0.35);
+      setTimeout(() => this.blip(1320, 0.15, 'triangle', 0.35), 80);
+      setTimeout(() => this.blip(1760, 0.2, 'triangle', 0.3), 160);
+    },
+    coin() { this.blip(1200, 0.06, 'square', 0.2); setTimeout(() => this.blip(1600, 0.1, 'square', 0.18), 50); },
+    registerCash() {
+      this.noise(0.15, 0.25, 800, 2);
+      setTimeout(() => this.blip(1500, 0.08, 'square', 0.18), 60);
+      setTimeout(() => this.blip(1800, 0.1, 'square', 0.15), 130);
+      setTimeout(() => this.blip(2200, 0.12, 'square', 0.12), 200);
+    },
+    cookOk() { this.noise(0.12, 0.2, 3000, 2); this.blip(520, 0.08, 'square', 0.15); },
+    cookErr() { this.blip(180, 0.25, 'sawtooth', 0.3, 80); this.noise(0.15, 0.15, 400, 1); },
+    complete() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this.blip(f, 0.14, 'triangle', 0.3), i * 60)); },
+    vip() { [659, 880, 1047, 1319].forEach((f, i) => setTimeout(() => this.blip(f, 0.16, 'triangle', 0.32), i * 70)); },
+    lose() { this.blip(440, 0.18, 'sawtooth', 0.3, 220); setTimeout(() => this.blip(220, 0.35, 'sawtooth', 0.3, 110), 140); },
+    click() { this.blip(800, 0.04, 'square', 0.15); },
+    upgrade() { [440, 554, 659, 880].forEach((f, i) => setTimeout(() => this.blip(f, 0.18, 'sine', 0.3), i * 80)); },
+    achievement() { [523, 659, 784, 1047, 1319].forEach((f, i) => setTimeout(() => this.blip(f, 0.22, 'triangle', 0.3), i * 90)); },
+    platinum() { [784, 988, 1175, 1568, 1976, 2093].forEach((f, i) => setTimeout(() => this.blip(f, 0.3, 'triangle', 0.35), i * 130)); },
+    warning() { this.blip(660, 0.12, 'square', 0.25); setTimeout(() => this.blip(660, 0.12, 'square', 0.25), 160); },
+    dayEnd() { [392, 523, 659, 784].forEach((f, i) => setTimeout(() => this.blip(f, 0.3, 'triangle', 0.3), i * 200)); },
+    gameOver() { [440, 392, 330, 262, 196].forEach((f, i) => setTimeout(() => this.blip(f, 0.4, 'sawtooth', 0.3), i * 180)); },
+    busArrive() { this.noise(0.3, 0.15, 200, 1); setTimeout(() => this.blip(180, 0.4, 'sawtooth', 0.15, 120), 200); setTimeout(() => this.noise(0.2, 0.12, 600, 2), 500); },
+    busDepart() { this.blip(120, 0.5, 'sawtooth', 0.18, 200); this.noise(0.3, 0.1, 400, 1); },
+    doorOpen() { this.noise(0.25, 0.18, 400, 2); this.blip(300, 0.3, 'sawtooth', 0.12, 220); },
+    doorClose() { this.noise(0.18, 0.2, 300, 2); this.blip(160, 0.2, 'sawtooth', 0.18, 90); },
+
+    sizzleStart() {
+      if (!this.ctx || this.sizzleNode) return;
+      const bufSize = this.ctx.sampleRate * 0.5;
+      const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1);
+      const src = this.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+      const filt = this.ctx.createBiquadFilter(); filt.type = 'highpass'; filt.frequency.value = 3000;
+      const g = this.ctx.createGain(); g.gain.value = 0;
+      src.connect(filt); filt.connect(g); g.connect(this.sfxGain);
+      src.start();
+      g.gain.setTargetAtTime(0.08, this.now(), 0.1);
+      this.sizzleNode = src; this.sizzleGain = g;
+    },
+    sizzleStop() {
+      if (!this.sizzleGain) return;
+      this.sizzleGain.gain.setTargetAtTime(0, this.now(), 0.1);
+      const n = this.sizzleNode;
+      setTimeout(() => { try { n.stop(); } catch (e) {} }, 300);
+      this.sizzleNode = null; this.sizzleGain = null;
+    },
+
+    // ===== Trilha estilo Sonic Pi (pad + arpejo + baixo) =====
+    startMusic() {
+      if (this.musicTimer) return;
+      let step = 0;
+      const playBar = () => {
+        if (!this.ctx || this.muted) return;
+        const t = this.now();
+        const chord = this.chordProgression[this.musicChordIdx % this.chordProgression.length];
+        // Pad (acorde sustentado)
+        chord.forEach(f => this._musicNote(f, 2.8, 'sine', 0.06, t));
+        // Baixo (nota fundamental, uma oitava abaixo)
+        this._musicNote(chord[0] / 2, 1.5, 'triangle', 0.14, t);
+        // Arpejo: 8 notas na barra
+        const arpNotes = [chord[0] * 2, chord[1] * 2, chord[2] * 2, chord[0] * 2, chord[2] * 2, chord[1] * 2, chord[0] * 2, chord[2] * 2];
+        arpNotes.forEach((f, i) => {
+          if (Math.random() < 0.85) this._musicNote(f, 0.18, 'triangle', 0.055, t + i * 0.35);
+        });
+        // Nota aleatória brilhante
+        if (Math.random() < 0.5) {
+          this._musicNote(chord[Math.floor(Math.random()*chord.length)] * 4, 0.4, 'sine', 0.04, t + Math.random() * 2);
+        }
+        step++;
+        if (step % 2 === 0) this.musicChordIdx++;
+      };
+      this.musicTimer = setInterval(playBar, 2800);
+      playBar();
+    },
+    // Percussão estilo beat
+    startDrums() {
+      if (this.drumTimer) return;
+      let beat = 0;
+      const bpm = 100;
+      const tick = () => {
+        if (!this.ctx || this.muted) return;
+        const t = this.now();
+        // Kick no 1 e 3 (a cada 2 beats)
+        if (beat % 4 === 0) {
+          const o = this.ctx.createOscillator();
+          const g = this.ctx.createGain();
+          o.type = 'sine';
+          o.frequency.setValueAtTime(150, t);
+          o.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+          g.gain.setValueAtTime(0.35, t);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+          o.connect(g); g.connect(this.musicGain);
+          o.start(t); o.stop(t + 0.22);
+        }
+        // Hi-hat em todos os beats
+        if (beat % 2 === 0 || Math.random() < 0.5) {
+          const bufSize = Math.floor(this.ctx.sampleRate * 0.05);
+          const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+          const src = this.ctx.createBufferSource(); src.buffer = buf;
+          const filt = this.ctx.createBiquadFilter(); filt.type = 'highpass'; filt.frequency.value = 6000;
+          const g = this.ctx.createGain();
+          g.gain.setValueAtTime(0.04, t);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+          src.connect(filt); filt.connect(g); g.connect(this.musicGain);
+          src.start(t); src.stop(t + 0.06);
+        }
+        // Snare no 2 e 4
+        if (beat % 4 === 2) {
+          const bufSize = Math.floor(this.ctx.sampleRate * 0.12);
+          const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+          const data = buf.getChannelData(0);
+          for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.6;
+          const src = this.ctx.createBufferSource(); src.buffer = buf;
+          const filt = this.ctx.createBiquadFilter(); filt.type = 'bandpass'; filt.frequency.value = 1800; filt.Q.value = 0.8;
+          const g = this.ctx.createGain();
+          g.gain.setValueAtTime(0.12, t);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+          src.connect(filt); filt.connect(g); g.connect(this.musicGain);
+          src.start(t); src.stop(t + 0.14);
+        }
+        beat++;
+      };
+      const interval = (60 / bpm) * 1000 / 2; // 8º de nota
+      this.drumTimer = setInterval(tick, interval);
+    },
+    _musicNote(freq, dur, type, vol, when) {
+      if (!this.ctx || this.muted) return;
+      const t = when ?? this.now();
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = type; o.frequency.value = freq;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(vol, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(this.musicGain);
+      o.start(t); o.stop(t + dur + 0.1);
+    },
+
+    startBaseAmbient() {
+      if (this.fridgeHum) return;
+      const o = this.ctx.createOscillator();
+      o.type = 'sine'; o.frequency.value = 60;
+      const g = this.ctx.createGain(); g.gain.value = 0.04;
+      o.connect(g); g.connect(this.ambientGain);
+      o.start();
+      this.fridgeHum = o;
+
+      const bufSize = this.ctx.sampleRate * 2;
+      const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < bufSize; i++) {
+        const w = Math.random() * 2 - 1;
+        b0 = 0.99765 * b0 + w * 0.099;
+        b1 = 0.96300 * b1 + w * 0.2965;
+        b2 = 0.57000 * b2 + w * 1.0526;
+        data[i] = (b0 + b1 + b2 + w * 0.1848) * 0.15;
+      }
+      const src = this.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+      const filt = this.ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 400;
+      const g2 = this.ctx.createGain(); g2.gain.value = 0.06;
+      src.connect(filt); filt.connect(g2); g2.connect(this.ambientGain);
+      src.start();
+      this.crowdNode = src;
+    },
+
+    setEventAmbient(eventId) {
+      if (!this.ctx) return;
+      if (this.rainGain) {
+        this.rainGain.gain.setTargetAtTime(0, this.now(), 0.3);
+        const rn = this.rainNode;
+        setTimeout(() => { try { rn.stop(); } catch (e) {} }, 500);
+        this.rainNode = null; this.rainGain = null;
+      }
+      if (eventId === 'rain') {
+        const bufSize = this.ctx.sampleRate * 2;
+        const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+        const src = this.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+        const filt = this.ctx.createBiquadFilter(); filt.type = 'bandpass'; filt.frequency.value = 2000; filt.Q.value = 0.7;
+        const g = this.ctx.createGain(); g.gain.value = 0;
+        src.connect(filt); filt.connect(g); g.connect(this.ambientGain);
+        src.start();
+        g.gain.setTargetAtTime(0.18, this.now(), 0.5);
+        this.rainNode = src; this.rainGain = g;
+      } else if (eventId === 'sunny') {
+        const o = this.ctx.createOscillator();
+        o.type = 'sawtooth'; o.frequency.value = 4400;
+        const g = this.ctx.createGain(); g.gain.value = 0.02;
+        const lfo = this.ctx.createOscillator(); lfo.frequency.value = 8;
+        const lfoGain = this.ctx.createGain(); lfoGain.gain.value = 0.015;
+        lfo.connect(lfoGain); lfoGain.connect(g.gain);
+        o.connect(g); g.connect(this.ambientGain);
+        o.start(); lfo.start();
+        this.rainNode = o; this.rainGain = g;
+      } else if (eventId === 'festival') {
+        const bufSize = this.ctx.sampleRate * 2;
+        const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * 0.4;
+        const src = this.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+        const filt = this.ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 800;
+        const g = this.ctx.createGain(); g.gain.value = 0;
+        src.connect(filt); filt.connect(g); g.connect(this.ambientGain);
+        src.start();
+        g.gain.setTargetAtTime(0.1, this.now(), 0.5);
+        this.rainNode = src; this.rainGain = g;
+      }
+      this.currentAmbient = eventId;
+    }
+  };
+
+  // =====================================================================
+  // UTIL
+  // =====================================================================
+  const SAVE_KEY = 'rei_burguers_save_v9';
+  const OLD_KEY  = 'rei_burguers_save_v8';
+  const fmt = v => 'R$ ' + v.toFixed(2).replace('.', ',');
+  const fmtTime = t => { t = Math.max(0, Math.ceil(t)); return Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); };
+
+  function defaultState() {
+    return {
+      phase: 'menu', day: 1, money: 100, reputation: 50,
+      served: 0, totalServed: 0, earned: 0, costs: 0, lost: 0, spent: 0,
+      goal: 160, lostClients: 0, totalLost: 0, bonusPaid: false, goalHit: false,
+      tutorialDone: false, eventId: 'normal', difficulty: 1,
+      timeLeft: 180, shiftLength: 180, inShift: false, shiftDone: false, snap: null,
+      shopName: 'Rei Burguers',
+      comboId: null,
+      contracts: [],
+      audioMuted: false,
+      vibration: true,
+      busTimer: 15
+    };
+  }
+
+  function vibrate(pattern) {
+    if (!Game.state.vibration) return;
+    if (navigator.vibrate) navigator.vibrate(pattern);
+  }
+
+  // =====================================================================
+  // GAME
+  // =====================================================================
+  const Game = {
+    state: defaultState(),
+    stock: { carne: 5, queijo: 5, alface: 5, refri: 6 },
+    upgrades: { grelha: 0, freezer: 0, caixa: 0, marketing: 0, refriMaq: 0, mesas: 0 },
+    staff: {
+      cozinheiro: { diaria: 0, semanal: 0 },
+      atendente:  { diaria: 0, semanal: 0 }
+    },
+    stats: { autoServed: 0, autoCooked: 0, totalEarned: 0, totalSpent: 0, daysPlayed: 0, perfectDays: 0, bestDay: 0, vipServed: 0, comboMaster: 0, busArrivals: 0, busCustomers: 0, timesEnteredTrailer: 0 },
+    achievements: {
+      first_sale:  { name: 'Primeira Venda',   desc: 'Sirva seu primeiro cliente',          icon: '🍔', unlocked: false },
+      day_3:       { name: 'Sobrevivente',     desc: 'Chegue ao dia 3',                      icon: '📅', unlocked: false },
+      day_7:       { name: 'Semana de Ouro',   desc: 'Chegue ao dia 7',                      icon: '🥇', unlocked: false },
+      money_500:   { name: 'Bolsos Cheios',    desc: 'Acumule R$ 500',                       icon: '💰', unlocked: false },
+      money_1000:  { name: 'Empresário',       desc: 'Acumule R$ 1.000',                     icon: '💎', unlocked: false },
+      rep_100:     { name: 'Fama Total',       desc: 'Alcance 100 de reputação',             icon: '⭐', unlocked: false },
+      perfect_day: { name: 'Dia Perfeito',     desc: 'Termine um dia sem perder clientes',   icon: '✨', unlocked: false },
+      vip_10:      { name: 'Atendimento VIP',  desc: 'Sirva 10 clientes VIP',                icon: '👑', unlocked: false },
+      upgrade_max: { name: 'Tecnologia Total', desc: 'Maximize um upgrade',                  icon: '🔧', unlocked: false },
+      staff_full:  { name: 'Grande Equipe',    desc: 'Contrate equipe completa (3+3)',       icon: '👥', unlocked: false },
+      served_50:   { name: '50 Clientes',      desc: 'Atenda 50 clientes no total',          icon: '🎯', unlocked: false },
+      combo_master:{ name: 'Mestre do Combo',  desc: 'Sirva 10 pedidos do combo do dia',     icon: '🎁', unlocked: false },
+      bus_rider:   { name: 'Passageiro Ilustre',desc: 'Atenda 20 clientes vindos de ônibus', icon: '🚌', unlocked: false },
+      inside_chef: { name: 'Chef de Interior', desc: 'Sirva 10 clientes de dentro do trailer',icon:'🚪', unlocked: false }
+    },
+    uiOpen: false,
+    prices: { carne: 4, queijo: 3, alface: 2, refri: 3 },
+
+    getEvent() { return Events.byId(this.state.eventId); },
+    staffPower(id) { return this.staff[id].diaria + this.staff[id].semanal * 1.5; },
+    staffCount(id) { return this.staff[id].diaria + this.staff[id].semanal; },
+    getTableCount() { return 2 + this.upgrades.mesas * 2; },
+    getRefriCapacity() { return 20 + this.upgrades.refriMaq * 20; },
+    getStockCapacity() { return 10 + this.upgrades.freezer * 10; },
+
+    save() {
+      try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify({
+          state: this.state, stock: this.stock, upgrades: this.upgrades,
+          staff: this.staff, stats: this.stats, achievements: this.achievements
+        }));
+      } catch (e) {}
+    },
+    load() {
+      try {
+        let raw = localStorage.getItem(SAVE_KEY), old = false;
+        if (!raw) { raw = localStorage.getItem(OLD_KEY); old = true; }
+        if (!raw) return false;
+        const d = JSON.parse(raw);
+        if (old && d.state) { d.state.inShift = false; d.state.shiftDone = false; }
+        if (d.state) Object.assign(this.state, d.state);
+        if (d.stock) {
+          if (typeof d.stock.refri !== 'number') d.stock.refri = 6;
+          Object.assign(this.stock, d.stock);
+        }
+        if (d.upgrades) {
+          if (typeof d.upgrades.refriMaq !== 'number') d.upgrades.refriMaq = 0;
+          if (typeof d.upgrades.mesas !== 'number') d.upgrades.mesas = 0;
+          Object.assign(this.upgrades, d.upgrades);
+        }
+        if (d.staff) {
+          ['cozinheiro','atendente'].forEach(k => {
+            const v = d.staff[k];
+            if (typeof v === 'number') this.staff[k] = { diaria: v, semanal: 0 };
+            else if (v && typeof v === 'object') this.staff[k] = { diaria: v.diaria||0, semanal: v.semanal||0 };
+          });
+        }
+        if (d.stats) Object.assign(this.stats, d.stats);
+        if (d.achievements) Object.assign(this.achievements, d.achievements);
+        if (!Array.isArray(this.state.contracts)) this.state.contracts = [];
+        if (!this.state.shopName) this.state.shopName = 'Rei Burguers';
+        if (typeof this.state.timeLeft !== 'number' || isNaN(this.state.timeLeft)) this.state.timeLeft = 180;
+        if (typeof this.state.audioMuted !== 'boolean') this.state.audioMuted = false;
+        if (typeof this.state.vibration !== 'boolean') this.state.vibration = true;
+        if (typeof this.state.busTimer !== 'number') this.state.busTimer = 15;
+        this.state.phase = 'menu';
+        return true;
+      } catch (e) { return false; }
+    },
+    loadFromJSON(json) {
+      try {
+        const d = JSON.parse(json);
+        if (!d.state) return false;
+        this.state = defaultState();
+        Object.assign(this.state, d.state);
+        this.state.phase = 'menu'; this.state.inShift = false; this.state.shiftDone = false;
+        if (d.stock) Object.assign(this.stock, d.stock);
+        if (d.upgrades) Object.assign(this.upgrades, d.upgrades);
+        if (d.staff) {
+          ['cozinheiro','atendente'].forEach(k => {
+            const v = d.staff[k];
+            if (typeof v === 'number') this.staff[k] = { diaria: v, semanal: 0 };
+            else if (v && typeof v === 'object') this.staff[k] = { diaria: v.diaria||0, semanal: v.semanal||0 };
+            else this.staff[k] = { diaria: 0, semanal: 0 };
+          });
+        }
+        if (d.stats) Object.assign(this.stats, d.stats);
+        if (d.achievements) Object.assign(this.achievements, d.achievements);
+        this.save(); return true;
+      } catch (e) { return false; }
+    },
+    reset() {
+      try { localStorage.removeItem(SAVE_KEY); localStorage.removeItem(OLD_KEY); } catch (e) {}
+      this.state = defaultState();
+      this.stock = { carne: 5, queijo: 5, alface: 5, refri: 6 };
+      this.upgrades = { grelha: 0, freezer: 0, caixa: 0, marketing: 0, refriMaq: 0, mesas: 0 };
+      this.staff = { cozinheiro: { diaria:0, semanal:0 }, atendente: { diaria:0, semanal:0 } };
+      this.stats = { autoServed: 0, autoCooked: 0, totalEarned: 0, totalSpent: 0, daysPlayed: 0, perfectDays: 0, bestDay: 0, vipServed: 0, comboMaster: 0, busArrivals: 0, busCustomers: 0, timesEnteredTrailer: 0 };
+      Object.keys(this.achievements).forEach(k => this.achievements[k].unlocked = false);
+    },
+
+    startShift() {
+      const s = this.state;
+      s.phase = 'playing';
+      s.earned = 0; s.costs = 0; s.lost = 0; s.spent = 0;
+      s.lostClients = 0; s.served = 0; s.bonusPaid = false; s.goalHit = false;
+      s.difficulty = 1 + (s.day - 1) * 0.08;
+      s.goal = Math.round(150 + (s.day - 1) * 100 + Math.pow(s.day, 1.3) * 10);
+      s.shiftLength = 180 + Math.min(s.day - 1, 6) * 10;
+      s.timeLeft = s.shiftLength;
+      s.eventId = Events.rollForDay(s.day).id;
+      const comboPool = ['burger','cheese','salad'];
+      s.comboId = comboPool[Math.floor(Math.random() * comboPool.length)];
+      s.busTimer = 12 + Math.random() * 8;
+      s.inShift = true; s.shiftDone = false;
+      s.snap = {
+        money: s.money, reputation: s.reputation,
+        stock: Object.assign({}, this.stock),
+        upgrades: Object.assign({}, this.upgrades),
+        staff: JSON.parse(JSON.stringify(this.staff)),
+        contracts: JSON.parse(JSON.stringify(this.state.contracts || []))
+      };
+      // Reset posição do jogador
+      playerGroup.position.set(0, 0, 5);
+      insideTrailer = false;
+      trailer.visible = true;
+      trailerInterior.visible = false;
+      this.stats.daysPlayed++;
+      beginShiftUI();
+      this.save();
+    },
+    resumeShift() { this.state.phase = 'playing'; beginShiftUI(); },
+    restartDay() {
+      const s = this.state;
+      if (!s.inShift || !s.snap) return;
+      cancelCooking(); clearClients();
+      this.stats.totalEarned -= s.earned;
+      this.stats.totalSpent -= s.spent;
+      s.totalServed -= s.served;
+      s.totalLost -= s.lostClients;
+      s.money = s.snap.money; s.reputation = s.snap.reputation;
+      Object.assign(this.stock, s.snap.stock);
+      Object.assign(this.upgrades, s.snap.upgrades);
+      this.staff = JSON.parse(JSON.stringify(s.snap.staff));
+      this.state.contracts = JSON.parse(JSON.stringify(s.snap.contracts || []));
+      s.earned = 0; s.costs = 0; s.lost = 0; s.spent = 0;
+      s.lostClients = 0; s.served = 0; s.bonusPaid = false; s.goalHit = false;
+      s.timeLeft = s.shiftLength; s.phase = 'playing';
+      s.busTimer = 12 + Math.random() * 8;
+      playerGroup.position.set(0, 0, 5);
+      insideTrailer = false;
+      trailer.visible = true;
+      trailerInterior.visible = false;
+      beginShiftUI();
+      this.save();
+    },
+    endShift() {
+      const s = this.state;
+      if (s.phase !== 'playing' && s.phase !== 'cooking') return;
+      cancelCooking();
+      s.phase = 'endday'; s.inShift = false; s.shiftDone = true;
+      if (insideTrailer) exitTrailer(true);
+
+      if (s.lostClients === 0 && s.served > 0) { this.stats.perfectDays++; this.unlockAchievement('perfect_day'); }
+      if (s.served > this.stats.bestDay) this.stats.bestDay = s.served;
+
+      let wageTotal = 0;
+      const expired = [];
+      s.contracts.forEach(c => {
+        wageTotal += c.dailyWage;
+        c.daysLeft--;
+        if (c.daysLeft <= 0) expired.push(c);
+      });
+      let wageWarn = false;
+      if (wageTotal > 0) {
+        if (s.money >= wageTotal) { s.money -= wageTotal; s.costs += wageTotal; }
+        else { s.costs += wageTotal; s.money = 0; this.addReputation(-5); wageWarn = true; }
+      }
+      expired.forEach(c => { if (this.staff[c.id] && this.staff[c.id].semanal > 0) this.staff[c.id].semanal--; });
+      s.contracts = s.contracts.filter(c => c.daysLeft > 0);
+      this.staff.cozinheiro.diaria = 0;
+      this.staff.atendente.diaria = 0;
+
+      const profit = s.earned - s.costs - s.lost;
+      const bEl = document.getElementById('end-bonus');
+      if (s.earned >= s.goal && !s.bonusPaid) {
+        const bonus = Math.round(s.goal * 0.2);
+        s.money += bonus; s.bonusPaid = true;
+        bEl.style.display = 'block';
+        bEl.textContent = '🎉 Meta batida! Bônus: +R$ ' + bonus;
+      } else bEl.style.display = 'none';
+
+      document.getElementById('end-served').textContent = s.served;
+      document.getElementById('end-earned').textContent = fmt(s.earned);
+      document.getElementById('end-costs').textContent = fmt(s.costs - wageTotal);
+      document.getElementById('end-wages').textContent = fmt(wageTotal) + (wageWarn ? ' ⚠' : '');
+      document.getElementById('end-lost').textContent = fmt(s.lost);
+      const pEl = document.getElementById('end-profit');
+      pEl.textContent = fmt(profit);
+      pEl.className = 'v' + (profit < 0 ? ' neg' : '');
+      document.getElementById('end-goal-status').textContent = s.earned >= s.goal ? '✅ Batida' : '❌ Não batida';
+      document.getElementById('end-rep').textContent = Math.round(s.reputation);
+      const ev = this.getEvent();
+      document.getElementById('end-event-info').textContent = ev.id === 'normal' ? '' : ev.icon + ' ' + ev.name + ' — ' + ev.desc;
+
+      if (s.day >= 3) this.unlockAchievement('day_3');
+      if (s.day >= 7) this.unlockAchievement('day_7');
+      if (s.money >= 500) this.unlockAchievement('money_500');
+      if (s.money >= 1000) this.unlockAchievement('money_1000');
+      if (s.reputation >= 100) this.unlockAchievement('rep_100');
+      if (s.totalServed >= 50) this.unlockAchievement('served_50');
+      this.checkPlatinum();
+      Audio.dayEnd();
+      updateHUD();
+      openModal('end-day');
+      this.save();
+    },
+    nextDay() {
+      const totalStock = this.stock.carne + this.stock.queijo + this.stock.alface + (this.stock.refri || 0);
+      if (this.state.money < 10 && totalStock < 1) {
+        this.state.phase = 'gameover';
+        closeModal('end-day');
+        document.getElementById('go-days').textContent = this.state.day;
+        document.getElementById('go-served').textContent = this.state.totalServed;
+        document.getElementById('go-money').textContent = fmt(this.state.money);
+        Audio.gameOver();
+        openModal('game-over');
+        return;
+      }
+      this.state.day++;
+      closeModal('end-day');
+      clearClients();
+      this.startShift();
+    },
+    restartAll() {
+      this.reset();
+      clearClients();
+      closeModal('game-over');
+      const w = document.getElementById('welcome');
+      w.style.display = 'flex'; w.style.opacity = '1';
+      refreshWelcome();
+      updateHUD(); updateStockBadge(); updateAchBadge(); updateWeatherBadge(); applyEnv();
+    },
+
+    addMoney(v) {
+      const s = this.state;
+      s.money += v; s.earned += v; this.stats.totalEarned += v;
+      if (!s.goalHit && s.earned >= s.goal) {
+        s.goalHit = true;
+        Audio.achievement();
+        showBanner('<div class="t">🎯 Meta batida!</div><div class="g">Continue vendendo até o fim do expediente.</div>');
+      }
+      updateHUD();
+    },
+    loseMoney(v) { this.state.money = Math.max(0, this.state.money - v); this.state.lost += v; updateHUD(); },
+    spendMoney(v, invest) {
+      const s = this.state;
+      s.money = Math.max(0, s.money - v);
+      s.spent += v; this.stats.totalSpent += v;
+      if (!invest) s.costs += v;
+      updateHUD();
+    },
+    addReputation(v) { this.state.reputation = Math.max(0, Math.min(100, this.state.reputation + v)); updateHUD(); },
+
+    unlockAchievement(id) {
+      const a = this.achievements[id];
+      if (!a || a.unlocked) return;
+      a.unlocked = true;
+      Audio.achievement();
+      showAchievementToast(a);
+      updateAchBadge();
+      this.save();
+    },
+    checkPlatinum() {
+      const all = Object.values(this.achievements);
+      if (all.every(a => a.unlocked) && !this._platinumShown) {
+        this._platinumShown = true;
+        Audio.platinum();
+        const el = document.createElement('div');
+        el.style.cssText = 'position:absolute;top:15%;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#e5e4e2,#b8b8b8,#e5e4e2);color:#121214;padding:16px 24px;border-radius:14px;font-weight:bold;z-index:130;box-shadow:0 10px 40px rgba(255,255,255,.4);text-align:center;max-width:90%;animation:popIn .4s ease-out;pointer-events:none;';
+        el.innerHTML = '🏆✨<div style="font-size:.7rem;opacity:.7;margin:4px 0;">TROFÉU DE PLATINA</div><div style="font-size:1.1rem;">100% das conquistas!</div><div style="font-size:.75rem;opacity:.7;margin-top:4px;">Você é uma lenda do Rei Burguers 👑</div>';
+        container.appendChild(el);
+        setTimeout(() => { el.style.transition = 'opacity .6s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 600); }, 5000);
+      }
+    },
+
+    hasStock(steps, hasRefri) {
+      const need = {};
+      steps.forEach(s => need[s] = (need[s] || 0) + 1);
+      for (const k in need) if ((this.stock[k] || 0) < need[k]) return false;
+      if (hasRefri && (this.stock.refri || 0) < 1) return false;
+      return true;
+    },
+    consumeStock(steps, hasRefri) {
+      steps.forEach(s => { this.stock[s] = Math.max(0, (this.stock[s] || 0) - 1); });
+      if (hasRefri) this.stock.refri = Math.max(0, (this.stock.refri || 0) - 1);
+      updateStockBadge();
+    },
+    addStock(item, qty) {
+      if (item === 'refri') this.stock.refri = Math.min(this.getRefriCapacity(), (this.stock.refri || 0) + qty);
+      else this.stock[item] = Math.min(this.getStockCapacity(), (this.stock[item] || 0) + qty);
+      updateStockBadge();
+    }
+  };
+
+  // =====================================================================
+  // EVENTOS
+  // =====================================================================
+  const Events = {
+    list: [
+      { id:'normal',     icon:'☀️', name:'Dia Normal',  desc:'Sem modificadores.',                              spawnMult:1.0, priceMult:1.0, patienceMult:1.0, weight:40, env:{ sun:0.9,  sunColor:0xfff5e6, bg:0x121214, amb:0.5 } },
+      { id:'happy_hour', icon:'🍺', name:'Happy Hour',  desc:'Combos com refri pagam +50%!',                    spawnMult:0.9, priceMult:1.0, patienceMult:1.0, weight:8,  special:'refri', env:{ sun:0.8, sunColor:0xffcc88, bg:0x1a1208, amb:0.5 } },
+      { id:'rain',       icon:'🌧️', name:'Chuva',       desc:'Menos clientes, mas pagam mais.',                 spawnMult:1.4, priceMult:1.2, patienceMult:1.0, weight:15, env:{ sun:0.5,  sunColor:0x99aacc, bg:0x1a1f2e, amb:0.35 } },
+      { id:'sunny',      icon:'🌞', name:'Dia Quente',  desc:'Muitos clientes, paciência menor.',               spawnMult:0.7, priceMult:0.9, patienceMult:0.7, weight:15, env:{ sun:1.2,  sunColor:0xffe8b0, bg:0x1a1410, amb:0.65 } },
+      { id:'game_day',   icon:'⚽', name:'Dia de Jogo', desc:'Filas enormes, mais clientes por vez.',           spawnMult:0.5, priceMult:1.0, patienceMult:0.9, weight:10, maxClients:2, env:{ sun:0.95, sunColor:0xa0ffb0, bg:0x102018, amb:0.55 } },
+      { id:'festival',   icon:'🎉', name:'Festival',    desc:'Clientes pagam 50% a mais!',                      spawnMult:0.8, priceMult:1.5, patienceMult:1.0, weight:8,  env:{ sun:1.0,  sunColor:0xffd0ff, bg:0x201020, amb:0.6 } },
+      { id:'health_day', icon:'🥗', name:'Dia Saudável',desc:'Salad Burger vale o dobro. Clientes exigentes.',  spawnMult:1.0, priceMult:1.0, patienceMult:0.8, weight:7,  special:'salad', env:{ sun:0.95, sunColor:0xd0ffd0, bg:0x101a10, amb:0.55 } },
+      { id:'vip_day',    icon:'👑', name:'Dia VIP',     desc:'Muitos clientes VIP aparecem.',                   spawnMult:0.9, priceMult:1.3, patienceMult:0.9, weight:5,  vipChance:0.4, env:{ sun:0.9,  sunColor:0xd0b0ff, bg:0x1a1028, amb:0.55 } }
+    ],
+    byId(id) { return this.list.find(e => e.id === id) || this.list[0]; },
+    rollForDay(day) {
+      if (day <= 1) return this.list[0];
+      const total = this.list.reduce((s, e) => s + e.weight, 0);
+      let r = Math.random() * total;
+      for (const e of this.list) { r -= e.weight; if (r <= 0) return e; }
+      return this.list[0];
+    }
+  };
+
+  // =====================================================================
+  // COLISÃO
+  // =====================================================================
+  const Collision = {
+    circles: [], boxes: [],
+    addCircle(x, z, r, owner) { const c = { x, z, r, owner }; this.circles.push(c); return c; },
+    addBox(minX, maxX, minZ, maxZ, owner) { this.boxes.push({ minX, maxX, minZ, maxZ, owner }); },
+    resolvePlayer(px, pz, pr) {
+      let nx = px, nz = pz;
+      for (const b of this.boxes) {
+        const cx = Math.max(b.minX, Math.min(nx, b.maxX));
+        const cz = Math.max(b.minZ, Math.min(nz, b.maxZ));
+        const dx = nx - cx, dz = nz - cz, d2 = dx * dx + dz * dz;
+        if (d2 < pr * pr && d2 > 0.0001) { const d = Math.sqrt(d2); nx += (dx / d) * (pr - d); nz += (dz / d) * (pr - d); }
+      }
+      for (const c of this.circles) {
+        const dx = nx - c.x, dz = nz - c.z, d2 = dx * dx + dz * dz, minD = pr + c.r;
+        if (d2 < minD * minD && d2 > 0.0001) { const d = Math.sqrt(d2); nx += (dx / d) * (minD - d); nz += (dz / d) * (minD - d); }
+      }
+      return { x: nx, z: nz };
+    }
+  };
+
+  // =====================================================================
+  // CENA 3D
+  // =====================================================================
+  const container = document.getElementById('game-container');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x121214);
+  scene.fog = new THREE.Fog(0x121214, 30, 70);
+
+  const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  container.appendChild(renderer.domElement);
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+  scene.add(ambientLight);
+  const sunLight = new THREE.DirectionalLight(0xfff5e6, 0.9);
+  sunLight.position.set(10, 20, 10); sunLight.castShadow = true;
+  sunLight.shadow.mapSize.width = 1024; sunLight.shadow.mapSize.height = 1024;
+  sunLight.shadow.camera.left = -25; sunLight.shadow.camera.right = 25;
+  sunLight.shadow.camera.top = 25; sunLight.shadow.camera.bottom = -25;
+  scene.add(sunLight);
+  const warmLight = new THREE.PointLight(0xffaa33, 1.8, 15);
+  warmLight.position.set(0, 3, 2.5); scene.add(warmLight);
+  // Luz do interior do trailer
+  const interiorLight = new THREE.PointLight(0xfff0c0, 0, 6);
+  interiorLight.position.set(0, 3, 0); scene.add(interiorLight);
+
+  function applyEnv() {
+    const e = Game.getEvent().env;
+    sunLight.intensity = e.sun; sunLight.color.setHex(e.sunColor);
+    scene.background.setHex(e.bg); scene.fog.color.setHex(e.bg);
+    ambientLight.intensity = e.amb;
+  }
+
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: 0x1e1e22, roughness: 0.9 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  const grid = new THREE.GridHelper(60, 60, 0xf5b301, 0x333333);
+  grid.position.y = 0.01; scene.add(grid);
+
+  const matBlack = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.5 });
+  const matYellow = new THREE.MeshStandardMaterial({ color: 0xf5b301, roughness: 0.3 });
+  const matInox = new THREE.MeshStandardMaterial({ color: 0xd0d5dd, metalness: 0.8, roughness: 0.2 });
+  const matWheel = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.8 });
+  const matAsphalt = new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.95 });
+  const matConcrete = new THREE.MeshStandardMaterial({ color: 0x555559, roughness: 0.9 });
+  const matGlass = new THREE.MeshStandardMaterial({ color: 0x334455, transparent: true, opacity: 0.5, roughness: 0.1, metalness: 0.3 });
+  const matWood = new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.8 });
+  const matCounter = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.4 });
+
+  // ===== Trailer (exterior) =====
+  const trailer = new THREE.Group();
+  const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.15, 1.8), matInox);
+  chassis.position.set(0, 0.4, 0); trailer.add(chassis);
+  [-0.4, 0.4].forEach(xOff => [-0.95, 0.95].forEach(zOff => {
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16), matWheel);
+    wheel.rotation.x = Math.PI / 2; wheel.position.set(xOff, 0.3, zOff); wheel.castShadow = true; trailer.add(wheel);
+  }));
+  const tBody = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2, 1.9), matBlack);
+  tBody.position.set(0, 1.45, 0); tBody.castShadow = true; trailer.add(tBody);
+  const yellowStripe = new THREE.Mesh(new THREE.BoxGeometry(2.82, 0.25, 1.92), matYellow);
+  yellowStripe.position.set(0, 1.25, 0); trailer.add(yellowStripe);
+  const windowCut = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.9, 0.05), matBlack);
+  windowCut.position.set(0, 1.8, 0.96); trailer.add(windowCut);
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.08, 0.35), matYellow);
+  counter.position.set(0, 1.35, 1.1); counter.castShadow = true; trailer.add(counter);
+  const awning = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.05, 0.6), matBlack);
+  awning.position.set(0, 2.3, 1.15); awning.rotation.x = 0.2; trailer.add(awning);
+  const menuBoard = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.02), matYellow);
+  menuBoard.position.set(-0.6, 1.8, 0.9); trailer.add(menuBoard);
+  const p1 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.8), matYellow); p1.position.set(1.3, 1.4, 2.5); trailer.add(p1);
+  const p2 = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 2.8), matYellow); p2.position.set(-1.3, 1.4, 2.5); trailer.add(p2);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 2.6), matYellow);
+  beam.rotation.z = Math.PI / 2; beam.position.set(0, 2.8, 2.5); trailer.add(beam);
+  const bulbGeo = new THREE.SphereGeometry(0.06, 8, 8);
+  const bulbMat = new THREE.MeshBasicMaterial({ color: 0xffcc44 });
+  for (let i = -1.1; i <= 1.1; i += 0.44) {
+    const bulb = new THREE.Mesh(bulbGeo, bulbMat);
+    bulb.position.set(i, 2.72, 2.5); trailer.add(bulb);
+  }
+  // Porta lateral direita (lado +X)
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x2a4a7a, roughness: 0.5, metalness: 0.3 });
+  const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.4, 0.8), matYellow);
+  doorFrame.position.set(1.42, 1.05, 0); trailer.add(doorFrame);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.3, 0.7), doorMat);
+  door.position.set(1.43, 1.05, 0); trailer.add(door);
+  const doorKnob = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), matYellow);
+  doorKnob.position.set(1.46, 1.05, -0.28); trailer.add(doorKnob);
+  scene.add(trailer);
+
+  // ===== Trailer (interior separado, escondido até entrar) =====
+  const trailerInterior = new THREE.Group();
+  trailerInterior.visible = false;
+  // Piso
+  const iFloor = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.05, 1.7), matWood);
+  iFloor.position.set(0, 0.6, 0); trailerInterior.add(iFloor);
+  // Paredes (fundo + laterais)
+  const iBack = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.7, 0.05), new THREE.MeshStandardMaterial({ color: 0x3a3a3e, roughness: 0.8 }));
+  iBack.position.set(0, 1.5, -0.85); trailerInterior.add(iBack);
+  const iLeft = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.7, 1.7), new THREE.MeshStandardMaterial({ color: 0x3a3a3e, roughness: 0.8 }));
+  iLeft.position.set(-1.3, 1.5, 0); trailerInterior.add(iLeft);
+  // Teto
+  const iCeil = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.05, 1.7), new THREE.MeshStandardMaterial({ color: 0x2a2a2e, roughness: 0.9 }));
+  iCeil.position.set(0, 2.4, 0); trailerInterior.add(iCeil);
+  // Balcão interno (onde ficam os preparos)
+  const iCounter = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.1, 0.5), matCounter);
+  iCounter.position.set(0, 1.35, 0.55); trailerInterior.add(iCounter);
+  // Fogão
+  const stove = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.15, 0.5), new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.7, roughness: 0.4 }));
+  stove.position.set(-0.7, 1.43, 0.5); trailerInterior.add(stove);
+  // Panelas
+  [-0.9, -0.5].forEach(x => {
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.12, 12), matInox);
+    pot.position.set(x, 1.55, 0.5); trailerInterior.add(pot);
+  });
+  // Geladeira
+  const fridge = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.5, 0.6), new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.5 }));
+  fridge.position.set(0.95, 1.35, 0); trailerInterior.add(fridge);
+  const fridgeHandle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.4, 0.03), matYellow);
+  fridgeHandle.position.set(0.66, 1.4, -0.05); trailerInterior.add(fridgeHandle);
+  // Prateleiras
+  for (let i = 0; i < 3; i++) {
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.03, 0.25), matInox);
+    shelf.position.set(-0.6, 1.7 + i * 0.3, -0.7); trailerInterior.add(shelf);
+  }
+  // Letreiro "COZINHA"
+  const signMat = new THREE.MeshBasicMaterial({ color: 0xf5b301 });
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.2, 0.02), signMat);
+  sign.position.set(0, 2.25, -0.82); trailerInterior.add(sign);
+  // Bancada lateral (onde player pode apoiar)
+  const sideBench = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 1.5), matCounter);
+  sideBench.position.set(-1.05, 1.0, 0); trailerInterior.add(sideBench);
+  trailerInterior.position.set(0, 0, 0);
+  scene.add(trailerInterior);
+
+  // ===== Ponto de ônibus ATRÁS DAS MESAS =====
+  // Rua atrás da cena
+  const backRoad = new THREE.Mesh(new THREE.BoxGeometry(30, 0.02, 4), matAsphalt);
+  backRoad.position.set(0, 0.015, 12); scene.add(backRoad);
+  const backSidewalk = new THREE.Mesh(new THREE.BoxGeometry(30, 0.15, 2), matConcrete);
+  backSidewalk.position.set(0, 0.08, 9.5); scene.add(backSidewalk);
+  const backLane = new THREE.Mesh(new THREE.BoxGeometry(30, 0.025, 0.15), matYellow);
+  backLane.position.set(0, 0.03, 12); scene.add(backLane);
+
+  // Ponto de ônibus atrás das mesas
+  const busStopGroup = new THREE.Group();
+  const stopPost = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4), matInox);
+  stopPost.position.set(0, 1.2, 0); busStopGroup.add(stopPost);
+  const stopSign = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.05), new THREE.MeshStandardMaterial({ color: 0x2a6fdb, roughness: 0.5 }));
+  stopSign.position.set(0, 2.2, 0.05); busStopGroup.add(stopSign);
+  const stopSignIcon = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.2, 0.02), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  stopSignIcon.position.set(0, 2.2, 0.08); busStopGroup.add(stopSignIcon);
+  const shelter = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.6), matInox);
+  shelter.position.set(0, 2.3, 0.8); shelter.castShadow = true; busStopGroup.add(shelter);
+  const shelterBack = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.6, 0.05), matGlass);
+  shelterBack.position.set(0, 1.5, 0.5); busStopGroup.add(shelterBack);
+  const bench = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.4), matBlack);
+  bench.position.set(0, 0.5, 0.8); busStopGroup.add(bench);
+  [-0.7, 0.7].forEach(x => {
+    const sp = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.8, 0.05), matInox);
+    sp.position.set(x, 1.4, 0.5); busStopGroup.add(sp);
+  });
+  // Ponto fica atrás das mesas, à esquerda. Mesas estão em z~3-4.5, então ponto em z~9.5 (na calçada traseira)
+  busStopGroup.position.set(-4, 0, 9.5);
+  scene.add(busStopGroup);
+
+  // Ônibus — agora trafega na rua de trás (z = 12), fora da área do trailer
+  const busGroup = new THREE.Group();
+  const busBody = new THREE.Mesh(new THREE.BoxGeometry(5, 2.4, 2), new THREE.MeshStandardMaterial({ color: 0xdd8833, roughness: 0.5, metalness: 0.2 }));
+  busBody.position.set(0, 1.4, 0); busBody.castShadow = true; busGroup.add(busBody);
+  const busStripe = new THREE.Mesh(new THREE.BoxGeometry(5.02, 0.2, 2.02), matYellow);
+  busStripe.position.set(0, 1.0, 0); busGroup.add(busStripe);
+  for (let i = -1.6; i <= 1.6; i += 0.8) {
+    const wL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.02), matGlass);
+    wL.position.set(i, 1.9, 1.01); busGroup.add(wL);
+    const wR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.02), matGlass);
+    wR.position.set(i, 1.9, -1.01); busGroup.add(wR);
+  }
+  const busWindshield = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.9, 1.8), matGlass);
+  busWindshield.position.set(2.51, 1.8, 0); busGroup.add(busWindshield);
+  [-1.6, 1.6].forEach(xOff => [-0.9, 0.9].forEach(zOff => {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.25, 16), matWheel);
+    w.rotation.x = Math.PI / 2; w.position.set(xOff, 0.5, zOff); w.castShadow = true; busGroup.add(w);
+  }));
+  const busLight = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.3), new THREE.MeshBasicMaterial({ color: 0xffdd88 }));
+  busLight.position.set(2.52, 1.0, 0.7); busGroup.add(busLight);
+  const busLight2 = busLight.clone(); busLight2.position.z = -0.7; busGroup.add(busLight2);
+  // Ônibus circula em z=12, começa fora
+  busGroup.position.set(-30, 0, 12);
+  scene.add(busGroup);
+
+  const TABLE_SLOTS = [
+    { x:0,   z:3.2 }, { x:1.8, z:3.2 },
+    { x:-1.8, z:3.2 }, { x:3.6, z:3.2 },
+    { x:-3.6, z:3.2 }, { x:0,   z:4.4 },
+    { x:1.8, z:4.4 }, { x:-1.8, z:4.4 }
+  ];
+  const meshesTables = [];
+  function addTableSet(x, z) {
+    const g = new THREE.Group();
+    const top = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 0.8), matYellow);
+    top.position.set(0, 0.7, 0); top.castShadow = true; g.add(top);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.7), matBlack); leg.position.set(0, 0.35, 0); g.add(leg);
+    [[-0.5, 0], [0.5, 0], [0, -0.5], [0, 0.5]].forEach(([cx, cz]) => {
+      const chair = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.35), matBlack);
+      chair.position.set(cx, 0.2, cz); chair.castShadow = true; g.add(chair);
+    });
+    g.position.set(x, 0, z); scene.add(g);
+    return g;
+  }
+  TABLE_SLOTS.forEach((sl, i) => {
+    const m = addTableSet(sl.x, sl.z);
+    meshesTables.push({ group: m, slotIndex: i });
+  });
+  function refreshTablesVisibility() {
+    const maxTables = Game.getTableCount();
+    meshesTables.forEach((t, i) => { t.group.visible = i < maxTables; });
+  }
+  refreshTablesVisibility();
+
+  // Colisão do trailer: um retângulo (exterior)
+  Collision.addBox(-1.5, 1.5, -1.05, 1.15, 'truck');
+
+  const playerGroup = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2a6fdb, roughness: 0.6 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xf0c8a0, roughness: 0.7 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.8 });
+  const shoeMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.7, 0.3), bodyMat); torso.position.y = 1.05; torso.castShadow = true; playerGroup.add(torso);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.35), skinMat); head.position.y = 1.65; head.castShadow = true; playerGroup.add(head);
+  const hair = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, 0.37), new THREE.MeshStandardMaterial({ color: 0x3a2a1a })); hair.position.y = 1.86; playerGroup.add(hair);
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.65, 0.22), pantsMat); legL.position.set(-0.15, 0.35, 0); legL.castShadow = true; playerGroup.add(legL);
+  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.65, 0.22), pantsMat); legR.position.set(0.15, 0.35, 0); legR.castShadow = true; playerGroup.add(legR);
+  const shoeL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.3), shoeMat); shoeL.position.set(-0.15, 0.05, 0.03); playerGroup.add(shoeL);
+  const shoeR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.3), shoeMat); shoeR.position.set(0.15, 0.05, 0.03); playerGroup.add(shoeR);
+  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.18), bodyMat); armL.position.set(-0.38, 1.05, 0); armL.castShadow = true; playerGroup.add(armL);
+  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.18), bodyMat); armR.position.set(0.38, 1.05, 0); armR.castShadow = true; playerGroup.add(armR);
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, 0.38), matYellow); cap.position.y = 1.92; playerGroup.add(cap);
+  const capBrim = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.04, 0.2), matYellow); capBrim.position.set(0, 1.88, 0.28); playerGroup.add(capBrim);
+  playerGroup.position.set(0, 0, 5); scene.add(playerGroup);
+  const PLAYER_RADIUS = 0.35;
+
+  // =====================================================================
+  // ENTRAR/SAIR DO TRAILER
+  // =====================================================================
+  let insideTrailer = false;
+  const DOOR_POS = new THREE.Vector3(1.9, 0, 0); // posição fora do trailer, ao lado da porta
+  const INSIDE_POS = new THREE.Vector3(0.6, 0.6, 0); // posição dentro do trailer (piso elevado)
+  const DOOR_RADIUS = 1.2;
+
+  function canEnterTrailer() {
+    const dx = playerGroup.position.x - DOOR_POS.x;
+    const dz = playerGroup.position.z - DOOR_POS.z;
+    return Math.sqrt(dx*dx + dz*dz) < DOOR_RADIUS;
+  }
+  function enterTrailer() {
+    if (insideTrailer) return;
+    insideTrailer = true;
+    Audio.doorOpen();
+    trailer.visible = false;
+    trailerInterior.visible = true;
+    playerGroup.position.copy(INSIDE_POS);
+    playerGroup.rotation.y = -Math.PI / 2; // de frente para o balcão
+    interiorLight.intensity = 1.2;
+    Game.stats.timesEnteredTrailer++;
+    showFloat('🚪 Entrou no trailer', playerGroup.position, 'info');
+    if (Game.stats.timesEnteredTrailer === 1) {
+      showBanner('<div class="t">🚪 Bem-vindo à cozinha!</div><div class="e">De dentro do trailer você atende os clientes pelo balcão.</div>');
+    }
+    updateInteractionUI();
+  }
+  function exitTrailer(silent) {
+    if (!insideTrailer) return;
+    insideTrailer = false;
+    if (!silent) Audio.doorClose();
+    trailer.visible = true;
+    trailerInterior.visible = false;
+    playerGroup.position.set(DOOR_POS.x + 0.5, 0, DOOR_POS.z);
+    playerGroup.rotation.y = -Math.PI / 2;
+    interiorLight.intensity = 0;
+    if (!silent) showFloat('🚪 Saiu do trailer', playerGroup.position, 'info');
+    updateInteractionUI();
+  }
+
+  // =====================================================================
+  // CLIENTES + NPCs CIVIS
+  // =====================================================================
+  const clients = [];
+  const npcCivilians = [];
+  const clientColors = [0xdb4b4b, 0x4bdb6a, 0xdb9b4b, 0x9b4bdb, 0x4b9bdb, 0xdb4b9b];
+  const MENU = [
+    { id:'burger',    name:'Hambúrguer',    price:25, steps:['carne','queijo','alface'], icons:['🥩','🧀','🥬'], hasRefri:false },
+    { id:'cheese',    name:'Cheeseburger',  price:30, steps:['carne','queijo','queijo'], icons:['🥩','🧀','🧀'], hasRefri:false },
+    { id:'salad',     name:'Salad Burger',  price:22, steps:['carne','alface','alface'], icons:['🥩','🥬','🥬'], hasRefri:false },
+    { id:'combo1',    name:'Burger + Refri',price:35, steps:['carne','queijo','alface'], icons:['🥩','🧀','🥬'], hasRefri:true },
+    { id:'combo2',    name:'Cheese + Refri',price:40, steps:['carne','queijo','queijo'], icons:['🥩','🧀','🧀'], hasRefri:true }
+  ];
+  const QUEUE_SLOTS = [
+    { x:-0.8, z:1.8 }, { x:0, z:1.8 }, { x:0.8, z:1.8 },
+    { x:-0.8, z:2.4 }, { x:0, z:2.4 }, { x:0.8, z:2.4 },
+    { x:-0.8, z:3.0 }, { x:0, z:3.0 }, { x:0.8, z:3.0 }
+  ];
+
+  function getPriceForOrder(order, isVip) {
+    let base = order.price * (1 + Game.upgrades.caixa * 0.1);
+    const ev = Game.getEvent();
+    if (ev.priceMult) base *= ev.priceMult;
+    if (Game.state.comboId === order.id) base *= 1.5;
+    if (ev.special === 'salad' && order.id === 'salad') base *= 2;
+    if (ev.special === 'refri' && order.hasRefri) base *= 1.5;
+    if (order.hasRefri) base *= 1.3;
+    if (order.hasRefri) base *= (1 - Game.upgrades.refriMaq * 0.05);
+    if (isVip) base *= 2;
+    return Math.round(base);
+  }
+
+  function createClient(slot, order, isVip, seatAt, fromBus) {
+    const pos = (seatAt !== null && seatAt !== undefined) ? TABLE_SLOTS[seatAt] : QUEUE_SLOTS[slot];
+    const x = pos.x + (Math.random() - 0.5) * 0.3, z = pos.z;
+    const g = new THREE.Group();
+    const color = isVip ? 0xa78bfa : clientColors[Math.floor(Math.random() * clientColors.length)];
+    const cMat = new THREE.MeshStandardMaterial({ color, roughness: 0.6, emissive: isVip ? 0x3a1060 : 0x000000, emissiveIntensity: isVip ? 0.4 : 0 });
+    const skin = new THREE.MeshStandardMaterial({ color: 0xf0c8a0, roughness: 0.7 });
+    const cBody = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), cMat); cBody.position.y = 1.0; cBody.castShadow = true; g.add(cBody);
+    const cHead = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.33), skin); cHead.position.y = 1.55; cHead.castShadow = true; g.add(cHead);
+    const dark = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const cl = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.2), dark); cl.position.set(-0.13, 0.3, 0); g.add(cl);
+    const cr = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.2), dark); cr.position.set(0.13, 0.3, 0); g.add(cr);
+    if (isVip) {
+      const crown = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.2, 4), new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0xaa7700, emissiveIntensity: 0.5, metalness: 0.8, roughness: 0.2 }));
+      crown.position.y = 1.85; crown.rotation.y = Math.PI / 4; g.add(crown);
+    }
+    const seated = (seatAt !== null && seatAt !== undefined);
+    if (seated) {
+      cl.scale.y = 0.6; cr.scale.y = 0.6;
+      cl.position.y = 0.5; cr.position.y = 0.5;
+    }
+    if (fromBus) {
+      // Passageiro desembarca atrás das mesas, junto ao ponto
+      g.position.set(-4 + (Math.random() - 0.5) * 1.5, 0, 9.5 + (Math.random() - 0.5) * 0.8);
+    } else {
+      g.position.set(x, 0, z + 3);
+    }
+    const ev = Game.getEvent();
+    let patience = ((25 + Math.random() * 10) / Game.state.difficulty) * (ev.patienceMult || 1);
+    if (seated) patience *= 1.8;
+    g.userData = {
+      slot, seatAt: seated ? seatAt : null,
+      targetX: x, targetZ: z, state: 'waiting',
+      patience, maxPatience: patience,
+      order, price: getPriceForOrder(order, isVip), isVip: !!isVip,
+      col: null, timer: 0, seated,
+      fromBus: !!fromBus,
+      walkingToQueue: !!fromBus,
+      barEl: null, fillEl: null
+    };
+    if (seated) g.userData.price = Math.round(g.userData.price * 1.2);
+    scene.add(g);
+    clients.push(g);
+    g.userData.col = Collision.addCircle(g.position.x, g.position.z, 0.4, g);
+    createPatienceBar(g);
+    Audio.voiceGreeting();
+    return g;
+  }
+
+  function createPatienceBar(c) {
+    const bar = document.createElement('div');
+    bar.className = 'patience-bar';
+    const fill = document.createElement('div');
+    fill.className = 'patience-fill';
+    fill.style.width = '100%';
+    fill.style.background = '#4ade80';
+    bar.appendChild(fill);
+    container.appendChild(bar);
+    c.userData.barEl = bar;
+    c.userData.fillEl = fill;
+  }
+  function updatePatienceBar(c) {
+    const ud = c.userData;
+    if (!ud.barEl) return;
+    if (ud.state !== 'waiting') { ud.barEl.style.display = 'none'; return; }
+    const p = new THREE.Vector3(c.position.x, 2.2, c.position.z);
+    p.project(camera);
+    const rect = renderer.domElement.getBoundingClientRect();
+    ud.barEl.style.left = ((p.x * 0.5 + 0.5) * rect.width - 18) + 'px';
+    ud.barEl.style.top = ((-p.y * 0.5 + 0.5) * rect.height) + 'px';
+    const ratio = Math.max(0, ud.patience / ud.maxPatience);
+    ud.fillEl.style.width = (ratio * 100) + '%';
+    if (ratio > 0.6) ud.fillEl.style.background = '#4ade80';
+    else if (ratio > 0.3) ud.fillEl.style.background = '#f5b301';
+    else ud.fillEl.style.background = '#f87171';
+    ud.barEl.style.display = (p.z < 1 && p.z > -1) ? 'block' : 'none';
+  }
+  function removePatienceBar(c) {
+    if (c.userData.barEl && c.userData.barEl.parentNode) c.userData.barEl.parentNode.removeChild(c.userData.barEl);
+    c.userData.barEl = null; c.userData.fillEl = null;
+  }
+  function dropCollider(c) {
+    const col = c.userData.col;
+    if (!col) return;
+    const i = Collision.circles.indexOf(col);
+    if (i > -1) Collision.circles.splice(i, 1);
+    c.userData.col = null;
+  }
+  function clearClients() {
+    cancelCooking();
+    clients.forEach(c => { scene.remove(c); removePatienceBar(c); });
+    clients.length = 0;
+    Collision.circles = Collision.circles.filter(c => typeof c.owner === 'string');
+  }
+  function startLeaving(c) {
+    c.userData.state = 'leaving'; c.userData.timer = 0;
+    dropCollider(c);
+    removePatienceBar(c);
+  }
+
+  function spawnCivilian() {
+    const g = new THREE.Group();
+    const color = clientColors[Math.floor(Math.random() * clientColors.length)];
+    const cMat = new THREE.MeshStandardMaterial({ color, roughness: 0.7 });
+    const skin = new THREE.MeshStandardMaterial({ color: 0xf0c8a0, roughness: 0.7 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), cMat); body.position.y = 1.0; body.castShadow = true; g.add(body);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.38, 0.33), skin); head.position.y = 1.55; head.castShadow = true; g.add(head);
+    const dark = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const l = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.2), dark); l.position.set(-0.13, 0.3, 0); g.add(l);
+    const r = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.6, 0.2), dark); r.position.set(0.13, 0.3, 0); g.add(r);
+    const startX = -14, endX = 14;
+    const z = 8.5 + Math.random() * 2; // calçada traseira
+    g.position.set(startX, 0, z);
+    g.userData = { speed: 1.5 + Math.random() * 0.8, endX, phase: Math.random() * Math.PI * 2 };
+    scene.add(g);
+    npcCivilians.push(g);
+  }
+
+  // =====================================================================
+  // INPUT
+  // =====================================================================
+  const joyZone = document.getElementById('joystick-zone');
+  const joyStick = document.getElementById('joystick-stick');
+  let joyActive = false, joyId = null, joyStartX = 0, joyStartY = 0;
+  let joyVecX = 0, joyVecY = 0;
+  const joyMaxRadius = 45;
+
+  function joyReset() {
+    joyActive = false; joyId = null;
+    joyStick.style.transform = 'translate(0,0)';
+    joyVecX = 0; joyVecY = 0;
+  }
+  function joyUpdate(cx, cy) {
+    let dx = cx - joyStartX, dy = cy - joyStartY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > joyMaxRadius) { dx = (dx / dist) * joyMaxRadius; dy = (dy / dist) * joyMaxRadius; }
+    joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+    joyVecX = dx / joyMaxRadius; joyVecY = dy / joyMaxRadius;
+  }
+  function joyBegin(cx, cy, id) {
+    joyActive = true; joyId = id;
+    const rect = joyZone.getBoundingClientRect();
+    joyStartX = rect.left + rect.width / 2;
+    joyStartY = rect.top + rect.height / 2;
+    joyUpdate(cx, cy);
+  }
+  joyZone.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    try { joyZone.setPointerCapture(e.pointerId); } catch (err) {}
+    joyBegin(e.clientX, e.clientY, e.pointerId);
+  });
+  joyZone.addEventListener('pointermove', e => {
+    if (!joyActive || e.pointerId !== joyId) return;
+    e.preventDefault(); joyUpdate(e.clientX, e.clientY);
+  });
+  joyZone.addEventListener('pointerup', e => { if (e.pointerId === joyId) { e.preventDefault(); joyReset(); } });
+  joyZone.addEventListener('pointercancel', e => { if (e.pointerId === joyId) joyReset(); });
+  joyZone.addEventListener('lostpointercapture', e => { if (e.pointerId === joyId) joyReset(); });
+  joyZone.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+  joyZone.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+  let camAngle = 0, camPitch = 0.35, camDistance = 6;
+  let camPointerId = null, camLastX = 0, camLastY = 0;
+  function isUIElementAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return false;
+    return !!(el.closest('#joystick-zone') || el.closest('#action-btn') || el.closest('#cam-btn') ||
+      el.closest('#audio-btn') || el.closest('#vibe-btn') || el.closest('#kitchen-panel') ||
+      el.closest('.top-btn') || el.closest('.modal') || el.closest('#tutorial-overlay') || el.closest('#welcome'));
+  }
+  renderer.domElement.addEventListener('pointerdown', e => {
+    if (isUIElementAt(e.clientX, e.clientY)) return;
+    if (camPointerId !== null) return;
+    camPointerId = e.pointerId; camLastX = e.clientX; camLastY = e.clientY;
+  });
+  renderer.domElement.addEventListener('pointermove', e => {
+    if (e.pointerId !== camPointerId) return;
+    camAngle -= (e.clientX - camLastX) * 0.006;
+    camPitch += (e.clientY - camLastY) * 0.005;
+    camPitch = Math.max(-0.15, Math.min(0.85, camPitch));
+    camLastX = e.clientX; camLastY = e.clientY;
+  });
+  renderer.domElement.addEventListener('pointerup', e => { if (e.pointerId === camPointerId) camPointerId = null; });
+  renderer.domElement.addEventListener('pointercancel', e => { if (e.pointerId === camPointerId) camPointerId = null; });
+  document.getElementById('cam-btn').addEventListener('click', () => { Audio.click(); camAngle = 0; camPitch = 0.35; });
+
+  // =====================================================================
+  // UI
+  // =====================================================================
+  const hudMoney = document.getElementById('hud-money');
+  const hudRep = document.getElementById('hud-rep');
+  const hudServed = document.getElementById('hud-served');
+  const hudGoal = document.getElementById('hud-goal');
+  const hudTime = document.getElementById('hud-time');
+  const hintEl = document.getElementById('hint');
+  const actionBtn = document.getElementById('action-btn');
+  const orderBubble = document.getElementById('order-bubble');
+  const orderItem = document.getElementById('order-item');
+  const orderPrice = document.getElementById('order-price');
+  const orderReq = document.getElementById('order-req');
+  const kitchenPanel = document.getElementById('kitchen-panel');
+  const kitSteps = document.getElementById('kit-steps');
+  const stockBadge = document.getElementById('stock-badge');
+  const achBadge = document.getElementById('ach-badge');
+
+  function updateHUD() {
+    const s = Game.state;
+    hudMoney.textContent = 'R$ ' + Math.floor(s.money);
+    hudRep.textContent = Math.round(s.reputation);
+    hudServed.textContent = s.served;
+    hudGoal.textContent = 'R$ ' + s.goal;
+    hudTime.textContent = fmtTime(s.timeLeft);
+    hudTime.classList.toggle('low', s.inShift && s.timeLeft <= 15);
+  }
+  function updateStockBadge() {
+    const low = ['carne','queijo','alface'].some(k => (Game.stock[k] || 0) < 2) || (Game.stock.refri || 0) < 2;
+    stockBadge.style.display = low ? 'flex' : 'none';
+  }
+  function updateAchBadge() {
+    const vals = Object.values(Game.achievements);
+    const unlocked = vals.filter(a => a.unlocked).length;
+    achBadge.style.display = unlocked > 0 && unlocked < vals.length ? 'flex' : 'none';
+  }
+  function updateWeatherBadge() {
+    const ev = Game.getEvent();
+    const badge = document.getElementById('weather-badge');
+    if (ev.id === 'normal') { badge.classList.remove('show'); }
+    else {
+      document.getElementById('weather-icon').textContent = ev.icon;
+      document.getElementById('weather-text').textContent = ev.name;
+      badge.classList.add('show');
+    }
+    const cb = document.getElementById('combo-badge');
+    if (Game.state.comboId && Game.state.inShift) {
+      const m = MENU.find(x => x.id === Game.state.comboId);
+      if (m) {
+        document.getElementById('combo-text').textContent = m.name + ' +50%';
+        cb.style.display = 'block';
+      } else cb.style.display = 'none';
+    } else cb.style.display = 'none';
+  }
+  function showBanner(html) {
+    const el = document.getElementById('day-banner');
+    el.innerHTML = html;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  }
+  function showFloat(text, worldPos, cls) {
+    const rect = renderer.domElement.getBoundingClientRect();
+    const p = worldPos.clone(); p.y += 2;
+    p.project(camera);
+    const el = document.createElement('div');
+    el.className = 'float-msg ' + cls;
+    el.textContent = text;
+    el.style.left = ((p.x * 0.5 + 0.5) * rect.width) + 'px';
+    el.style.top = ((-p.y * 0.5 + 0.5) * rect.height) + 'px';
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 1600);
+  }
+  function showAchievementToast(ach) {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:absolute;top:20%;left:50%;transform:translateX(-50%);background:linear-gradient(180deg,#ffd700,#f5b301);color:#121214;padding:12px 20px;border-radius:12px;font-weight:bold;z-index:120;box-shadow:0 8px 30px rgba(255,215,0,.5);text-align:center;max-width:90%;animation:popIn .3s ease-out;pointer-events:none;';
+    el.innerHTML = '🏆 <div style="font-size:.7rem;opacity:.8;margin-bottom:2px;">CONQUISTA DESBLOQUEADA</div><div style="font-size:.95rem;">' + ach.icon + ' ' + ach.name + '</div><div style="font-size:.7rem;opacity:.7;margin-top:2px;">' + ach.desc + '</div>';
+    container.appendChild(el);
+    vibrate([50, 50, 50]);
+    setTimeout(() => { el.style.transition = 'opacity .5s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 500); }, 3000);
+  }
+
+  function syncUI() { Game.uiOpen = !!document.querySelector('.modal.open'); }
+  function openModal(id) { joyReset(); document.getElementById(id).classList.add('open'); syncUI(); Audio.click(); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); syncUI(); }
+
+  function beginShiftUI() {
+    applyEnv(); updateHUD(); updateStockBadge(); updateWeatherBadge();
+    refreshTablesVisibility();
+    Audio.setEventAmbient(Game.state.eventId);
+    spawnTimer = 0; autoServeTimer = 0; lastSec = -1;
+    const s = Game.state, ev = Game.getEvent();
+    const combo = MENU.find(x => x.id === s.comboId);
+    showBanner('<div class="t">Dia ' + s.day + '</div>' +
+      (ev.id === 'normal' ? '' : '<div class="e">' + ev.icon + ' ' + ev.name + ' — ' + ev.desc + '</div>') +
+      (combo ? '<div class="e" style="color:#4ade80">🎁 Combo: ' + combo.name + ' +50%</div>' : '') +
+      '<div class="g">Meta: R$ ' + s.goal + ' · Tempo: ' + fmtTime(s.timeLeft) + '</div>');
+    spawnClient(); spawnClient();
+  }
+
+  // =====================================================================
+  // COZINHA
+  // =====================================================================
+  let cookingClient = null, cookStepIndex = 0, cookBase = 0;
+
+  function getClosestClient() {
+    let closest = null, closestDist = Infinity;
+    clients.forEach(c => {
+      if (c.userData.state !== 'waiting' || c.userData.walkingToQueue) return;
+      // Se está dentro do trailer, só atende quem está na frente do balcão
+      if (insideTrailer) {
+        // Só clientes de fila (não sentados), e próximos do balcão
+        if (c.userData.seated) return;
+      }
+      const dx = playerGroup.position.x - c.position.x;
+      const dz = playerGroup.position.z - c.position.z;
+      const d = Math.sqrt(dx * dx + dz * dz);
+      const maxDist = insideTrailer ? 3.5 : 2.8;
+      if (d < closestDist && d < maxDist) { closestDist = d; closest = c; }
+    });
+    return closest;
+  }
+
+  function showOrderBubble(client) {
+    if (!client) { orderBubble.style.display = 'none'; return; }
+    const o = client.userData.order;
+    let label = o.name;
+    if (client.userData.isVip) label += ' 👑';
+    if (client.userData.seated) label += ' 🪑';
+    if (Game.state.comboId === o.id) label += ' 🎁';
+    orderItem.textContent = label;
+    orderPrice.textContent = fmt(client.userData.price);
+    const has = Game.hasStock(o.steps, o.hasRefri);
+    let prep = 'Preparo: ' + o.icons.join(' → ');
+    if (o.hasRefri) prep += ' + 🥤';
+    orderReq.textContent = prep + (has ? '' : ' ⚠ SEM ESTOQUE');
+    orderReq.style.color = has ? '#c4c4cc' : '#f87171';
+    orderBubble.classList.toggle('vip', client.userData.isVip);
+    const ratio = client.userData.patience / client.userData.maxPatience;
+    const emo = ratio > 0.6 ? '😊' : ratio > 0.3 ? '😐' : '😠';
+    orderBubble.querySelector('.ttl').textContent = 'Pedido ' + emo + (insideTrailer ? ' 🚪' : '');
+    orderBubble.style.display = 'block';
+  }
+
+  function autoStepsFor(order) {
+    const g = Game.upgrades.grelha;
+    const n = (g >= 1 ? 1 : 0) + (g >= 4 ? 1 : 0) + Math.floor(Game.staffPower('cozinheiro'));
+    return Math.min(n, order.steps.length - 1);
+  }
+
+  function renderKitchenSlots() {
+    if (!cookingClient) return;
+    const icons = cookingClient.userData.order.icons;
+    kitSteps.innerHTML = icons.map((ic, i) =>
+      '<div class="slot ' + (i < cookStepIndex ? 'done' : i === cookStepIndex ? 'next' : '') + '">' + ic + '</div>').join('');
+  }
+
+  function startCooking(client) {
+    const order = client.userData.order;
+    if (!Game.hasStock(order.steps, order.hasRefri)) {
+      Audio.warning();
+      showFloat('SEM ESTOQUE!', client.position, 'loss');
+      vibrate([50, 50, 50]);
+      return;
+    }
+    cookingClient = client;
+    cookBase = autoStepsFor(order);
+    cookStepIndex = cookBase;
+    if (cookBase > 0) { Game.stats.autoCooked += cookBase; showFloat('🔥 +' + cookBase + ' pronto', client.position, 'info'); }
+    Game.state.phase = 'cooking';
+    orderBubble.style.display = 'none';
+    hintEl.style.display = 'none';
+    kitchenPanel.style.display = 'flex';
+    actionBtn.classList.add('disabled');
+    renderKitchenSlots();
+    Audio.sizzleStart();
+  }
+
+  function cancelCooking() {
+    kitchenPanel.style.display = 'none';
+    cookingClient = null; cookStepIndex = 0; cookBase = 0;
+    if (Game.state.phase === 'cooking') Game.state.phase = 'playing';
+    Audio.sizzleStop();
+  }
+
+  function doCookStep(ing) {
+    if (!cookingClient || Game.uiOpen) return;
+    const steps = cookingClient.userData.order.steps;
+    if (ing === steps[cookStepIndex]) {
+      cookStepIndex++;
+      Audio.cookOk();
+      vibrate(12);
+      renderKitchenSlots();
+      if (cookStepIndex >= steps.length) finishCooking();
+    } else {
+      cookStepIndex = cookBase;
+      Audio.cookErr();
+      renderKitchenSlots();
+      showFloat('Errado! Recomece', cookingClient.position, 'loss');
+      vibrate([30, 30, 30]);
+    }
+  }
+
+  function finishCooking() {
+    const c = cookingClient;
+    if (!c) return;
+    const s = Game.state;
+    kitchenPanel.style.display = 'none';
+    Audio.sizzleStop();
+    Game.consumeStock(c.userData.order.steps, c.userData.order.hasRefri);
+    c.userData.state = 'served'; c.userData.timer = 0;
+    s.served++; s.totalServed++;
+    Game.addMoney(c.userData.price);
+    Game.addReputation(c.userData.isVip ? 5 : 2);
+    Audio.registerCash();
+    if (c.userData.isVip) {
+      Audio.vip();
+      showFloat('+' + c.userData.price.toFixed(2).replace('.', ',') + ' 👑', c.position, 'vip');
+    } else {
+      Audio.serve();
+      showFloat('+' + c.userData.price.toFixed(2).replace('.', ',') + ' ❤', c.position, 'gain');
+    }
+    Audio.voiceHappy();
+    vibrate(40);
+    Game.unlockAchievement('first_sale');
+    if (c.userData.isVip) {
+      Game.stats.vipServed++;
+      if (Game.stats.vipServed >= 10) Game.unlockAchievement('vip_10');
+    }
+    if (Game.state.comboId === c.userData.order.id) {
+      Game.stats.comboMaster = (Game.stats.comboMaster || 0) + 1;
+      if (Game.stats.comboMaster >= 10) Game.unlockAchievement('combo_master');
+    }
+    if (c.userData.fromBus) {
+      Game.stats.busCustomers++;
+      if (Game.stats.busCustomers >= 20) Game.unlockAchievement('bus_rider');
+    }
+    if (insideTrailer) {
+      Game.stats.insideChef = (Game.stats.insideChef || 0) + 1;
+      if (Game.stats.insideChef >= 10) Game.unlockAchievement('inside_chef');
+    }
+    removePatienceBar(c);
+    cookingClient = null; cookStepIndex = 0; cookBase = 0;
+    s.phase = 'playing';
+    updateHUD(); updateStockBadge();
+    Game.save();
+  }
+
+  actionBtn.addEventListener('touchstart', e => { e.preventDefault(); actionBtn.classList.add('active'); onAction(); }, { passive: false });
+  actionBtn.addEventListener('touchend', e => { e.preventDefault(); actionBtn.classList.remove('active'); }, { passive: false });
+  actionBtn.addEventListener('mousedown', e => { e.preventDefault(); actionBtn.classList.add('active'); onAction(); });
+  actionBtn.addEventListener('mouseup', () => actionBtn.classList.remove('active'));
+
+  function onAction() {
+    if (Game.state.phase !== 'playing' || Game.uiOpen || Tutorial.active) return;
+    // Prioridade 1: entrar/sair do trailer se estiver perto da porta
+    if (!insideTrailer && canEnterTrailer()) { enterTrailer(); return; }
+    if (insideTrailer && canEnterTrailer()) { exitTrailer(); return; }
+    // Prioridade 2: atender cliente
+    const c = getClosestClient();
+    if (c) startCooking(c);
+  }
+
+  kitchenPanel.querySelectorAll('.kit-btn').forEach(btn => {
+    btn.addEventListener('touchstart', e => { e.preventDefault(); doCookStep(btn.dataset.ing); }, { passive: false });
+    btn.addEventListener('mousedown', e => { e.preventDefault(); doCookStep(btn.dataset.ing); });
+  });
+  const kitCancel = document.getElementById('kit-cancel');
+  kitCancel.addEventListener('touchstart', e => { e.preventDefault(); cancelCooking(); }, { passive: false });
+  kitCancel.addEventListener('mousedown', e => { e.preventDefault(); cancelCooking(); });
+  window.addEventListener('keydown', e => {
+    if (e.code === 'KeyE') onAction();
+    if (e.code === 'Escape' && insideTrailer) exitTrailer();
+  });
+
+  // =====================================================================
+  // SPAWN / ATENDENTE / ÔNIBUS
+  // =====================================================================
+  let spawnTimer = 0, autoServeTimer = 0, autosaveTimer = 0, lastSec = -1;
+  let busState = 'idle';
+  let busTimerLocal = 0;
+  let civilianTimer = 0;
+
+  function getSpawnInterval() {
+    const ev = Game.getEvent();
+    const reduced = Math.max(2, (6 - Game.upgrades.marketing * 0.8) * (ev.spawnMult || 1));
+    return reduced / Game.state.difficulty;
+  }
+  function getMaxClients() { return 3 + Game.upgrades.marketing + (Game.getEvent().maxClients || 0); }
+
+  function spawnClient(slotOverride, orderOverride, isVipOverride, fromBus) {
+    const ph = Game.state.phase;
+    if (ph !== 'playing' && ph !== 'cooking') return null;
+    const waiting = clients.filter(c => c.userData.state === 'waiting');
+    const maxC = getMaxClients();
+
+    const queueCount = waiting.filter(c => !c.userData.seated).length;
+    if (queueCount >= maxC) {
+      if (!fromBus && Math.random() < 0.3) {
+        Game.addReputation(-1);
+        Audio.warning();
+        showFloat('😤 Fila cheia!', playerGroup.position, 'loss');
+      }
+      return null;
+    }
+
+    const seatedCount = waiting.filter(c => c.userData.seated).length;
+    const tableCount = Game.getTableCount();
+    const canSeat = seatedCount < tableCount;
+    const wantsSeat = canSeat && Math.random() < 0.35;
+
+    const order = orderOverride || MENU[Math.floor(Math.random() * MENU.length)];
+    const ev = Game.getEvent();
+    let vipChance = ev.vipChance || 0.08;
+    if (Game.upgrades.marketing >= 3) vipChance += 0.05;
+    const isVip = (isVipOverride !== undefined) ? isVipOverride : (Math.random() < vipChance);
+
+    if (wantsSeat && !isVip && !fromBus) {
+      const usedSeats = waiting.filter(c => c.userData.seated).map(c => c.userData.seatAt);
+      let freeSeat = -1;
+      for (let i = 0; i < TABLE_SLOTS.length; i++) {
+        if (i >= tableCount) break;
+        if (!usedSeats.includes(i)) { freeSeat = i; break; }
+      }
+      if (freeSeat >= 0) return createClient(0, order, false, freeSeat, false);
+    }
+
+    let freeSlot = slotOverride;
+    if (freeSlot === undefined || freeSlot === null) {
+      const usedSlots = waiting.filter(c => !c.userData.seated).map(c => c.userData.slot);
+      const free = [];
+      for (let i = 0; i < QUEUE_SLOTS.length; i++) if (!usedSlots.includes(i)) free.push(i);
+      if (!free.length) return null;
+      freeSlot = free[0];
+    }
+    return createClient(freeSlot, order, isVip, null, fromBus);
+  }
+
+  function startBusArrival() {
+    if (busState !== 'idle') return;
+    busState = 'arriving';
+    busTimerLocal = 0;
+    Audio.busArrive();
+  }
+  function busDropPassengers() {
+    const s = Game.state;
+    s.busTimer = 15 + Math.random() * 12;
+    Game.stats.busArrivals++;
+    const total = 2 + Math.floor(Math.random() * 4);
+    let customerCount = 0;
+    for (let i = 0; i < total; i++) {
+      const isCustomer = Math.random() < 0.6;
+      if (isCustomer) {
+        const c = spawnClient(null, null, false, true);
+        if (c) customerCount++;
+        else spawnCivilian();
+      } else {
+        spawnCivilian();
+      }
+    }
+    if (customerCount > 0) showFloat('🚌 ' + customerCount + ' passageiro' + (customerCount > 1 ? 's' : '') + '!', new THREE.Vector3(-4, 1, 9.5), 'info');
+  }
+
+  function autoServeTick(dt) {
+    const power = Game.staffPower('atendente');
+    if (power <= 0) return;
+    autoServeTimer += dt;
+    if (autoServeTimer < 12 / power) return;
+    autoServeTimer = 0;
+    for (const c of clients) {
+      if (c.userData.state !== 'waiting' || c === cookingClient || c.userData.walkingToQueue) continue;
+      if (!Game.hasStock(c.userData.order.steps, c.userData.order.hasRefri)) continue;
+      Game.consumeStock(c.userData.order.steps, c.userData.order.hasRefri);
+      c.userData.state = 'served'; c.userData.timer = 0;
+      Game.state.served++; Game.state.totalServed++;
+      Game.addMoney(c.userData.price);
+      Game.addReputation(1);
+      Game.stats.autoServed++;
+      Audio.coin();
+      showFloat('🤵 Auto +' + c.userData.price.toFixed(2).replace('.', ','), c.position, 'info');
+      updateStockBadge();
+      removePatienceBar(c);
+      break;
+    }
+  }
+
+  // =====================================================================
+  // LOOP
+  // =====================================================================
+  const clock = new THREE.Clock();
+  const moveSpeed = 4.2;
+  let stepAudioAccum = 0;
+
+  function updateInteractionUI() {
+    const ph = Game.state.phase;
+    if (Game.uiOpen || Tutorial.active) { hintEl.style.display = 'none'; orderBubble.style.display = 'none'; return; }
+    if (ph === 'cooking') { hintEl.style.display = 'none'; actionBtn.classList.add('disabled'); actionBtn.classList.remove('door'); return; }
+    if (ph !== 'playing') { hintEl.style.display = 'none'; orderBubble.style.display = 'none'; actionBtn.classList.add('disabled'); actionBtn.classList.remove('door'); return; }
+
+    // Verifica porta primeiro
+    const nearDoor = canEnterTrailer();
+    const c = getClosestClient();
+    if (nearDoor && !c) {
+      actionBtn.classList.remove('disabled');
+      actionBtn.classList.add('door');
+      actionBtn.textContent = insideTrailer ? '🚪' : '🚪';
+      hintEl.style.display = 'block';
+      hintEl.textContent = insideTrailer ? '🚪 Toque para sair' : '🚪 Toque para entrar';
+      orderBubble.style.display = 'none';
+      return;
+    }
+    actionBtn.classList.remove('door');
+    actionBtn.textContent = '🍔';
+    if (c) {
+      actionBtn.classList.remove('disabled');
+      hintEl.style.display = 'block';
+      hintEl.textContent = c.userData.seated ? '🍔 Atender mesa' : (insideTrailer ? '🍔 Atender do balcão' : '🍔 Toque para atender');
+      showOrderBubble(c);
+    } else {
+      actionBtn.classList.add('disabled');
+      orderBubble.style.display = 'none';
+      hintEl.style.display = 'none';
+    }
+  }
+
+  function updateBus(dt) {
+    if (!Game.state.inShift) return;
+    if (busState === 'idle') {
+      Game.state.busTimer -= dt;
+      if (Game.state.busTimer <= 0) startBusArrival();
+    } else if (busState === 'arriving') {
+      busTimerLocal += dt;
+      // Ponto de ônibus fica em x = -4, na rua de trás (z = 12)
+      const target = -6;
+      if (busGroup.position.x < target) {
+        busGroup.position.x += dt * 8;
+        if (busGroup.position.x > target) busGroup.position.x = target;
+      } else {
+        busState = 'dwelling';
+        busTimerLocal = 0;
+        busDropPassengers();
+      }
+    } else if (busState === 'dwelling') {
+      busTimerLocal += dt;
+      if (busTimerLocal > 2.5) { busState = 'departing'; busTimerLocal = 0; Audio.busDepart(); }
+    } else if (busState === 'departing') {
+      busTimerLocal += dt;
+      busGroup.position.x += dt * 10;
+      if (busGroup.position.x > 25) {
+        busGroup.position.x = -30;
+        busState = 'idle';
+      }
+    }
+  }
+
+  function updateCivilians(dt) {
+    for (let i = npcCivilians.length - 1; i >= 0; i--) {
+      const g = npcCivilians[i];
+      const ud = g.userData;
+      g.position.x += ud.speed * dt;
+      g.rotation.y = Math.PI / 2;
+      const t = performance.now() * 0.008 + ud.phase;
+      g.children[0].position.y = 1.0 + Math.abs(Math.sin(t)) * 0.03;
+      if (g.position.x > ud.endX) {
+        scene.remove(g);
+        npcCivilians.splice(i, 1);
+      }
+    }
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const dt = Math.min(clock.getDelta(), 0.1);
+    const ph = Game.state.phase;
+    const running = (ph === 'playing' || ph === 'cooking') && !Game.uiOpen && !Tutorial.active;
+    const sdt = running ? dt : 0;
+
+    let moveX = joyVecX, moveZ = joyVecY;
+    const mag = Math.sqrt(moveX * moveX + moveZ * moveZ);
+    const moving = mag > 0.15 && ph !== 'cooking' && !Game.uiOpen;
+    if (moving) {
+      const norm = Math.min(mag, 1);
+      moveX = (moveX / mag) * norm; moveZ = (moveZ / mag) * norm;
+      const cos = Math.cos(camAngle), sin = Math.sin(camAngle);
+      const worldX = moveX * cos - moveZ * sin;
+      const worldZ = moveX * sin + moveZ * cos;
+      let nx = playerGroup.position.x + worldX * moveSpeed * dt;
+      let nz = playerGroup.position.z + worldZ * moveSpeed * dt;
+      // Colisão: dentro do trailer usa limites menores; fora usa o sistema normal
+      if (insideTrailer) {
+        nx = Math.max(-1.15, Math.min(1.15, nx));
+        nz = Math.max(-0.75, Math.min(0.35, nz));
+        playerGroup.position.x = nx;
+        playerGroup.position.z = nz;
+      } else {
+        const res = Collision.resolvePlayer(nx, nz, PLAYER_RADIUS);
+        playerGroup.position.x = Math.max(-16, Math.min(16, res.x));
+        playerGroup.position.z = Math.max(-4, Math.min(16, res.z));
+      }
+      const targetAngle = Math.atan2(worldX, worldZ);
+      let diff = targetAngle - playerGroup.rotation.y;
+      while (diff > Math.PI) diff -= Math.PI * 2;
+      while (diff < -Math.PI) diff += Math.PI * 2;
+      playerGroup.rotation.y += diff * 12 * dt;
+      const t = performance.now() * 0.012;
+      armL.rotation.x = Math.sin(t) * 0.6; armR.rotation.x = -Math.sin(t) * 0.6;
+      legL.rotation.x = Math.sin(t) * 0.4; legR.rotation.x = -Math.sin(t) * 0.4;
+      stepAudioAccum += dt;
+      if (stepAudioAccum > 0.32) { stepAudioAccum = 0; if (running) Audio.step(); }
+    } else {
+      armL.rotation.x *= 0.85; armR.rotation.x *= 0.85;
+      legL.rotation.x *= 0.85; legR.rotation.x *= 0.85;
+    }
+
+    const camX = playerGroup.position.x + Math.sin(camAngle) * camDistance * Math.cos(camPitch);
+    const camY = playerGroup.position.y + 2 + Math.sin(camPitch) * camDistance;
+    const camZ = playerGroup.position.z + Math.cos(camAngle) * camDistance * Math.cos(camPitch);
+    camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 8 * dt);
+    camera.lookAt(playerGroup.position.x, playerGroup.position.y + 1.2, playerGroup.position.z);
+
+    if (running) {
+      Game.state.timeLeft -= sdt;
+      const sec = Math.ceil(Game.state.timeLeft);
+      if (sec !== lastSec) {
+        lastSec = sec;
+        updateHUD();
+        if (sec <= 10 && sec > 0) Audio.blip(900, 0.06, 'square', 0.15);
+      }
+      spawnTimer += sdt;
+      if (spawnTimer > getSpawnInterval()) { spawnTimer = 0; spawnClient(); }
+      autoServeTick(sdt);
+      updateBus(sdt);
+      civilianTimer += sdt;
+      if (civilianTimer > 6 + Math.random() * 4) {
+        civilianTimer = 0;
+        if (npcCivilians.length < 4 && Math.random() < 0.7) spawnCivilian();
+      }
+      autosaveTimer += sdt;
+      if (autosaveTimer > 10) { autosaveTimer = 0; Game.save(); }
+      if (Game.state.timeLeft <= 0) { Game.state.timeLeft = 0; Game.endShift(); }
+    }
+
+    updateCivilians(dt);
+
+    for (let i = clients.length - 1; i >= 0; i--) {
+      const c = clients[i], ud = c.userData;
+      if (ud.state === 'waiting') {
+        if (ud.walkingToQueue) {
+          const dx = ud.targetX - c.position.x, dz = ud.targetZ - c.position.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist > 0.3) {
+            c.position.x += (dx / dist) * 3 * sdt;
+            c.position.z += (dz / dist) * 3 * sdt;
+            c.rotation.y = Math.atan2(dx, dz);
+            if (ud.col) { ud.col.x = c.position.x; ud.col.z = c.position.z; }
+          } else {
+            ud.walkingToQueue = false;
+          }
+        } else {
+          const dx = ud.targetX - c.position.x, dz = ud.targetZ - c.position.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          if (dist > 0.05) { c.position.x += (dx / dist) * 2 * sdt; c.position.z += (dz / dist) * 2 * sdt; }
+          if (ud.col) { ud.col.x = c.position.x; ud.col.z = c.position.z; }
+          c.rotation.y = Math.PI;
+        }
+        if (running && c !== cookingClient && !ud.walkingToQueue) {
+          ud.patience -= sdt;
+          if (ud.patience / ud.maxPatience < 0.3) c.scale.setScalar(Math.sin(performance.now() * 0.01) > 0 ? 1.05 : 1.0);
+          else c.scale.setScalar(1.0);
+          if (Math.random() < 0.002 && ud.patience / ud.maxPatience < 0.4) Audio.voiceAngry();
+          if (ud.patience <= 0) {
+            startLeaving(c);
+            Game.loseMoney(10);
+            Game.addReputation(-3);
+            Game.state.lostClients++; Game.state.totalLost++;
+            Audio.lose(); Audio.voiceAngry();
+            showFloat('-R$ 10,00 💔', c.position, 'loss');
+            if (ud.isVip) showFloat('VIP PERDIDO!', c.position, 'loss');
+          }
+        }
+        updatePatienceBar(c);
+      } else if (ud.state === 'served') {
+        ud.timer += sdt;
+        c.rotation.y = Math.PI;
+        c.scale.setScalar(Math.sin(ud.timer * 20) > 0 ? 1.08 : 1.0);
+        if (ud.timer > 1.5) { startLeaving(c); c.scale.setScalar(1); }
+      } else if (ud.state === 'leaving') {
+        ud.timer += sdt;
+        c.position.z += 3 * sdt;
+        c.position.x += Math.sin(ud.timer * 3) * 0.5 * sdt;
+        if (c.position.z > 16) {
+          scene.remove(c); dropCollider(c); removePatienceBar(c);
+          clients.splice(i, 1);
+        }
+      }
+    }
+
+    updateInteractionUI();
+    renderer.render(scene, camera);
+  }
+
+  // =====================================================================
+  // TUTORIAL
+  // =====================================================================
+  const Tutorial = {
+    steps: [
+      { ttl:'Boas-vindas', msg:'Bem-vindo ao <b>Rei Burguers</b>! Você é o dono. Vamos aprender o básico em poucos passos.' },
+      { ttl:'Movimento', msg:'Use o <span class="k">JOYSTICK</span> no canto inferior esquerdo para andar. Arraste em qualquer lugar da tela para girar a câmera.' },
+      { ttl:'Clientes', msg:'Os clientes chegam a pé ou <b>de ônibus</b>. Eles ficam em fila ou sentam nas mesas. Cada um tem pedido e paciência.' },
+      { ttl:'Paciência', msg:'A <b>barrinha verde</b> acima da cabeça é a paciência. Fica amarela, depois vermelha. Se zerar, o cliente vai embora e você perde $.' },
+      { ttl:'Atendimento', msg:'Aproxime-se de um cliente e toque no botão <span class="k">🍔</span>. O balão mostra o pedido e o preço.' },
+      { ttl:'Preparo', msg:'Depois de tocar em 🍔, a receita aparece. Toque nos ingredientes <b>na ordem</b>. Refri vai junto do combo, sem preparo.' },
+      { ttl:'Entrar no trailer', msg:'Vá até a <b>porta lateral direita</b> do trailer (lado laranja). Quando aparecer <span class="k">🚪</span>, toque para entrar. Lá dentro você vê a cozinha e atende pelo balcão.' },
+      { ttl:'Ônibus', msg:'O <b>ônibus</b> chega ao ponto de tempos em tempos (atrás das mesas). Passageiros desembarcam e alguns vêm comprar!' },
+      { ttl:'Loja', msg:'Toque no <span class="k">🛒</span> para comprar <b>estoque</b>, <b>upgrades</b> e contratar <b>equipe</b>. Funcionário <b>diária</b> some no fim do dia; <b>semanal</b> dura 7 dias.' },
+      { ttl:'Pronto!', msg:'Você está pronto! Estoque é essencial, cuide dos passageiros do ônibus e experimente atender de dentro do trailer. Boa sorte! 👑' }
+    ],
+    currentStep: 0, active: false,
+    start() { this.currentStep = 0; this.active = true; joyReset(); document.getElementById('tutorial-overlay').classList.add('show'); this.render(); },
+    next() { this.currentStep++; if (this.currentStep >= this.steps.length) this.finish(); else this.render(); },
+    finish() {
+      this.active = false;
+      document.getElementById('tutorial-overlay').classList.remove('show');
+      Game.state.tutorialDone = true;
+      Game.save();
+    },
+    render() {
+      const s = this.steps[this.currentStep];
+      document.getElementById('tutorial-ttl').textContent = 'Passo ' + (this.currentStep + 1) + ' de ' + this.steps.length + ' · ' + s.ttl;
+      document.getElementById('tutorial-msg').innerHTML = s.msg;
+      document.getElementById('tutorial-progress').innerHTML = this.steps.map((_, i) =>
+        '<div class="dot ' + (i < this.currentStep ? 'done' : i === this.currentStep ? 'active' : '') + '"></div>').join('');
+      document.getElementById('tutorial-next').textContent = this.currentStep === this.steps.length - 1 ? '🎉 Entendi!' : 'Continuar ▶';
+    }
+  };
+  document.getElementById('tutorial-next').addEventListener('click', () => Tutorial.next());
+  document.getElementById('tutorial-skip').addEventListener('click', () => Tutorial.finish());
+
+  // =====================================================================
+  // LOJA
+  // =====================================================================
+  const UPGRADES = [
+    { id:'grelha',    ico:'🔥', name:'Grelha Melhor',      desc:'Carne já grelhada: Nv1 pula 1 passo, Nv4 pula 2 (sempre sobra 1 toque).', base:80 },
+    { id:'freezer',   ico:'❄️', name:'Freezer Ampliado',   desc:'Aumenta capacidade de estoque (+10 por nível).',                          base:100 },
+    { id:'caixa',     ico:'💰', name:'Caixa Registradora', desc:'Aumenta o preço de venda em +10% por nível.',                              base:150 },
+    { id:'marketing', ico:'📣', name:'Marketing',          desc:'Clientes chegam mais rápido e a fila é maior.',                            base:120 },
+    { id:'refriMaq',  ico:'🥤', name:'Máquina de Refri',   desc:'+20 latas de capacidade e -5% no preço do refri por nível.',              base:180 },
+    { id:'mesas',     ico:'🪑', name:'Mais Mesas',         desc:'+2 mesas para clientes sentarem (pagam +20%).',                            base:220 }
+  ];
+  const STAFF = [
+    { id:'cozinheiro', ico:'👨‍🍳', name:'Cozinheiro', desc:'Cada contratado deixa 1 passo do preparo pronto.', base:200 },
+    { id:'atendente',  ico:'🤵',  name:'Atendente',  desc:'Atende clientes sozinho. Semanal é 50% mais eficiente.', base:300 }
+  ];
+
+  function renderShop(tab) {
+    if (tab === 'stock') {
+      const cap = Game.getStockCapacity();
+      const rcap = Game.getRefriCapacity();
+      const icons = { carne:'🥩', queijo:'🧀', alface:'🥬', refri:'🥤' };
+      const names = { carne:'Carne', queijo:'Queijo', alface:'Alface', refri:'Refrigerante' };
+      const capMap = { carne:cap, queijo:cap, alface:cap, refri:rcap };
+      document.getElementById('shop-tab-stock').innerHTML = ['carne','queijo','alface','refri'].map(item => {
+        let price = Game.prices[item];
+        if (item === 'refri') price = Math.max(1, price * (1 - Game.upgrades.refriMaq * 0.05));
+        const qty = Game.stock[item] || 0;
+        return `<div class="shop-item"><div class="ico">${icons[item]}</div>
+          <div class="info"><div class="name">${names[item]}</div><div class="sub">R$ ${price.toFixed(2)}/un · Estoque: ${qty}/${capMap[item]}</div></div>
+          <button class="buy-btn" data-buy="${item}">+5<br><small>R$ ${(price * 5).toFixed(2)}</small></button></div>`;
+      }).join('');
+    } else if (tab === 'upgrade') {
+      document.getElementById('shop-tab-upgrade').innerHTML = UPGRADES.map(u => {
+        const lvl = Game.upgrades[u.id], price = Math.round(u.base * Math.pow(1.6, lvl)), maxed = lvl >= 5;
+        return `<div class="upgrade-item"><div class="head"><div class="ico">${u.ico}</div><div class="name">${u.name}</div><div class="lvl">Nv ${lvl}/5</div></div>
+          <div class="desc">${u.desc}</div>
+          <div class="foot"><div class="price">${maxed ? 'MAX' : 'R$ ' + price.toFixed(2)}</div>
+          <button class="buy-btn" data-upg="${u.id}" ${maxed ? 'disabled' : ''}>${maxed ? '✓' : 'Comprar'}</button></div></div>`;
+      }).join('');
+    } else if (tab === 'staff') {
+      document.getElementById('shop-tab-staff').innerHTML = STAFF.map(s => {
+        const d = Game.staff[s.id].diaria, sm = Game.staff[s.id].semanal;
+        const pDiaria = Math.round(s.base);
+        const pSemanal = Math.round(s.base * 5);
+        const wageDiaria = Math.round(s.base * 0.15);
+        return `<div class="upgrade-item">
+          <div class="head"><div class="ico">${s.ico}</div><div class="name">${s.name}</div><div class="lvl">Diária: ${d} · Semanal: ${sm}</div></div>
+          <div class="desc">${s.desc}<br><small style="color:#f5b301">Semanal: eficiência +50% · salário R$ ${wageDiaria.toFixed(2)}/dia</small></div>
+          <div class="foot" style="flex-wrap:wrap;gap:6px;">
+            <button class="buy-btn" data-staff-dia="${s.id}" style="min-width:90px;">Diária<br><small>R$ ${pDiaria}</small></button>
+            <button class="buy-btn" data-staff-sem="${s.id}" style="min-width:90px;background:linear-gradient(180deg,#a78bfa,#7c5cf0);color:#fff;">Semanal<br><small>R$ ${pSemanal}</small></button>
+          </div></div>`;
+      }).join('');
+    }
+  }
+  function noMoney() { Audio.warning(); showFloat('SEM DINHEIRO!', playerGroup.position, 'loss'); }
+
+  function buyStock(item, qty) {
+    let price = Game.prices[item];
+    if (item === 'refri') price = Math.max(1, price * (1 - Game.upgrades.refriMaq * 0.05));
+    const cost = price * qty;
+    if (Game.state.money < cost) { noMoney(); return; }
+    Game.spendMoney(cost, false);
+    Game.addStock(item, qty);
+    Audio.coin();
+    renderShop('stock'); Game.save();
+  }
+  function buyUpgrade(id) {
+    const u = UPGRADES.find(x => x.id === id);
+    if (!u) return;
+    const lvl = Game.upgrades[id];
+    if (lvl >= 5) return;
+    const price = Math.round(u.base * Math.pow(1.6, lvl));
+    if (Game.state.money < price) { noMoney(); return; }
+    Game.spendMoney(price, true);
+    Game.upgrades[id]++;
+    if (id === 'mesas') refreshTablesVisibility();
+    if (Game.upgrades[id] >= 5) Game.unlockAchievement('upgrade_max');
+    Audio.upgrade();
+    renderShop('upgrade'); Game.save();
+  }
+  function hireStaff(id, tipo) {
+    const st = STAFF.find(x => x.id === id);
+    if (!st) return;
+    const isDiaria = tipo === 'diaria';
+    const price = isDiaria ? Math.round(st.base) : Math.round(st.base * 5);
+    if (Game.state.money < price) { noMoney(); return; }
+    Game.spendMoney(price, true);
+    if (isDiaria) Game.staff[id].diaria++;
+    else {
+      Game.staff[id].semanal++;
+      const wage = Math.round(st.base * 0.15);
+      Game.state.contracts.push({ id, daysLeft: 7, dailyWage: wage });
+    }
+    if (Game.staffCount('cozinheiro') >= 3 && Game.staffCount('atendente') >= 3) Game.unlockAchievement('staff_full');
+    Audio.upgrade();
+    renderShop('staff'); Game.save();
+  }
+
+  // =====================================================================
+  // CONQUISTAS E STATS
+  // =====================================================================
+  function renderAchievements() {
+    const vals = Object.values(Game.achievements);
+    const unlockedCount = vals.filter(a => a.unlocked).length;
+    const allUnlocked = unlockedCount === vals.length;
+    let html = vals.map(a => `
+      <div class="ach-item ${a.unlocked ? 'unlocked' : ''} ${allUnlocked ? 'plat' : ''}"><div class="ico">${a.icon}</div>
+        <div class="info"><div class="name">${a.name}</div><div class="desc">${a.desc}</div></div></div>`).join('');
+    if (allUnlocked) {
+      html = '<div class="ach-item plat unlocked" style="background:linear-gradient(135deg,rgba(229,228,226,.2),rgba(192,192,192,.1));"><div class="ico">🏆</div><div class="info"><div class="name" style="color:#e5e4e2">TROFÉU DE PLATINA</div><div class="desc">Você desbloqueou tudo!</div></div></div>' + html;
+    }
+    document.getElementById('ach-list').innerHTML = html;
+  }
+  function renderStats() {
+    const s = Game.stats, row = (l, v) => `<div class="stat-row"><span class="lbl">${l}</span><span class="val">${v}</span></div>`;
+    const achCount = Object.values(Game.achievements).filter(a => a.unlocked).length;
+    const achTotal = Object.keys(Game.achievements).length;
+    document.getElementById('stats-content').innerHTML =
+      row('Dias jogados', s.daysPlayed) + row('Dia atual', Game.state.day) +
+      row('Clientes atendidos (total)', Game.state.totalServed) + row('Melhor dia (clientes)', s.bestDay) +
+      row('Dias perfeitos', s.perfectDays) + row('Clientes VIP servidos', s.vipServed) +
+      row('Servidos por atendente', s.autoServed) + row('Passos pré-prontos', s.autoCooked) +
+      row('Combos servidos', s.comboMaster || 0) +
+      row('Ônibus chegados', s.busArrivals || 0) + row('Clientes do ônibus', s.busCustomers || 0) +
+      row('Vezes que entrou no trailer', s.timesEnteredTrailer || 0) +
+      row('Clientes servidos do interior', s.insideChef || 0) +
+      row('Dinheiro total ganho', fmt(s.totalEarned)) + row('Dinheiro total gasto', fmt(s.totalSpent)) +
+      row('Clientes perdidos (total)', Game.state.totalLost) +
+      row('Contratos semanais ativos', Game.state.contracts.length) +
+      row('Conquistas', achCount + '/' + achTotal);
+  }
+
+  // =====================================================================
+  // HANDLERS
+  // =====================================================================
+  document.getElementById('menu-btn').addEventListener('click', () => {
+    const s = Game.state, ev = Game.getEvent();
+    document.getElementById('menu-day').textContent = s.day;
+    document.getElementById('menu-time').textContent = fmtTime(s.timeLeft);
+    document.getElementById('menu-money').textContent = fmt(s.money);
+    document.getElementById('menu-rep').textContent = Math.round(s.reputation);
+    document.getElementById('menu-served').textContent = s.served;
+    document.getElementById('menu-goal').textContent = fmt(s.goal);
+    document.getElementById('menu-earned').textContent = fmt(s.earned);
+    document.getElementById('menu-event').textContent = ev.icon + ' ' + ev.name;
+    const achCount = Object.values(Game.achievements).filter(a => a.unlocked).length;
+    document.getElementById('menu-ach').textContent = achCount + '/' + Object.keys(Game.achievements).length;
+    openModal('menu-modal');
+  });
+  document.getElementById('menu-resume').addEventListener('click', () => closeModal('menu-modal'));
+  document.getElementById('menu-stats').addEventListener('click', () => { closeModal('menu-modal'); renderStats(); openModal('stats-modal'); });
+  document.getElementById('menu-end').addEventListener('click', () => {
+    if (confirm('Encerrar o expediente agora? Você ainda recebe o bônus se a meta já foi batida.')) {
+      closeModal('menu-modal'); Game.endShift();
+    }
+  });
+  document.getElementById('menu-restart').addEventListener('click', () => {
+    if (confirm('Reiniciar o dia? Dinheiro, estoque e compras de hoje voltam ao início do expediente.')) {
+      closeModal('menu-modal'); Game.restartDay();
+    }
+  });
+
+  function openExport() {
+    const json = localStorage.getItem(SAVE_KEY) || '{}';
+    document.getElementById('export-text').value = json;
+    openModal('export-modal');
+  }
+  function openImport() {
+    document.getElementById('import-text').value = '';
+    openModal('import-modal');
+  }
+  document.getElementById('export-btn').addEventListener('click', openExport);
+  document.getElementById('import-btn').addEventListener('click', openImport);
+  document.getElementById('menu-export').addEventListener('click', () => { closeModal('menu-modal'); openExport(); });
+  document.getElementById('menu-import').addEventListener('click', () => { closeModal('menu-modal'); openImport(); });
+  document.getElementById('export-close').addEventListener('click', () => closeModal('export-modal'));
+  document.getElementById('import-close').addEventListener('click', () => closeModal('import-modal'));
+  document.getElementById('export-copy').addEventListener('click', () => {
+    const t = document.getElementById('export-text');
+    t.select(); t.setSelectionRange(0, 99999);
+    try { document.execCommand('copy'); } catch (e) {}
+    Audio.click();
+    showFloat('📋 Copiado!', playerGroup.position, 'info');
+  });
+  document.getElementById('import-apply').addEventListener('click', () => {
+    const txt = document.getElementById('import-text').value.trim();
+    if (!txt) return;
+    if (Game.loadFromJSON(txt)) {
+      Audio.upgrade();
+      closeModal('import-modal');
+      refreshWelcome();
+      updateHUD(); updateStockBadge(); updateAchBadge(); updateWeatherBadge(); applyEnv();
+      showBanner('<div class="t">✅ Save importado!</div>');
+    } else {
+      Audio.warning();
+      alert('JSON inválido.');
+    }
+  });
+
+  document.getElementById('shop-btn').addEventListener('click', () => { renderShop('stock'); openModal('shop-modal'); });
+  document.getElementById('shop-close').addEventListener('click', () => closeModal('shop-modal'));
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const t = tab.dataset.tab;
+      ['stock', 'upgrade', 'staff'].forEach(k => document.getElementById('shop-tab-' + k).style.display = (t === k ? 'block' : 'none'));
+      renderShop(t);
+      Audio.click();
+    });
+  });
+  document.getElementById('shop-modal').addEventListener('click', e => {
+    const b = e.target.closest('.buy-btn');
+    if (!b) return;
+    if (b.dataset.buy) buyStock(b.dataset.buy, 5);
+    else if (b.dataset.upg) buyUpgrade(b.dataset.upg);
+    else if (b.dataset.staffDia) hireStaff(b.dataset.staffDia, 'diaria');
+    else if (b.dataset.staffSem) hireStaff(b.dataset.staffSem, 'semanal');
+  });
+
+  document.getElementById('ach-btn').addEventListener('click', () => { renderAchievements(); openModal('ach-modal'); });
+  document.getElementById('ach-close').addEventListener('click', () => closeModal('ach-modal'));
+  document.getElementById('stats-close').addEventListener('click', () => closeModal('stats-modal'));
+  document.getElementById('next-day-btn').addEventListener('click', () => Game.nextDay());
+  document.getElementById('restart-all-btn').addEventListener('click', () => Game.restartAll());
+
+  const audioBtn = document.getElementById('audio-btn');
+  function refreshAudioBtn() {
+    audioBtn.textContent = Game.state.audioMuted ? '🔇' : '🔊';
+    audioBtn.classList.toggle('muted', Game.state.audioMuted);
+  }
+  audioBtn.addEventListener('click', () => {
+    Game.state.audioMuted = !Game.state.audioMuted;
+    Audio.setMuted(Game.state.audioMuted);
+    refreshAudioBtn(); Audio.click();
+    Game.save();
+  });
+
+  const vibeBtn = document.getElementById('vibe-btn');
+  function refreshVibeBtn() {
+    vibeBtn.textContent = Game.state.vibration ? '📳' : '📴';
+    vibeBtn.classList.toggle('muted', !Game.state.vibration);
+  }
+  vibeBtn.addEventListener('click', () => {
+    Game.state.vibration = !Game.state.vibration;
+    refreshVibeBtn();
+    if (Game.state.vibration) vibrate(30);
+    Audio.click();
+    Game.save();
+  });
+
+  function onResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', () => setTimeout(onResize, 200));
+  window.addEventListener('pagehide', () => Game.save());
+  document.addEventListener('visibilitychange', () => { if (document.hidden) Game.save(); });
+
+  // =====================================================================
+  // START
+  // =====================================================================
+  function refreshWelcome() {
+    document.getElementById('welcome-title').textContent = Game.state.shopName || 'Rei Burguers';
+    document.getElementById('shop-name-input').value = Game.state.shopName || 'Rei Burguers';
+    const s = Game.state, info = document.getElementById('save-info'), btn = document.getElementById('start-btn');
+    if (s.inShift) { info.textContent = '💾 Expediente em andamento · Dia ' + s.day + ' · ' + fmt(s.money); btn.textContent = '▶ CONTINUAR'; }
+    else if (s.shiftDone) { info.textContent = '💾 Dia ' + s.day + ' concluído · ' + fmt(s.money); btn.textContent = '▶ PRÓXIMO DIA'; }
+    else if (s.day > 1 || s.totalServed > 0) { info.textContent = '💾 Save encontrado · Dia ' + s.day + ' · ' + fmt(s.money); btn.textContent = '▶ CONTINUAR'; }
+    else { info.textContent = ''; btn.textContent = '▶ JOGAR'; }
+  }
+
+  Game.load();
+  updateHUD(); updateStockBadge(); updateAchBadge(); updateWeatherBadge(); applyEnv();
+  refreshWelcome();
+  refreshAudioBtn();
+  refreshVibeBtn();
+
+  function initAudioOnce() {
+    Audio.init();
+    Audio.setMuted(Game.state.audioMuted);
+    Audio.resume();
+    document.removeEventListener('pointerdown', initAudioOnce);
+    document.removeEventListener('touchstart', initAudioOnce);
+    document.removeEventListener('click', initAudioOnce);
+  }
+  document.addEventListener('pointerdown', initAudioOnce);
+  document.addEventListener('touchstart', initAudioOnce);
+  document.addEventListener('click', initAudioOnce);
+
+  const nameInput = document.getElementById('shop-name-input');
+  const nameSave = document.getElementById('shop-name-save');
+  nameSave.addEventListener('click', () => {
+    const v = (nameInput.value || '').trim().slice(0, 20) || 'Rei Burguers';
+    Game.state.shopName = v;
+    document.getElementById('welcome-title').textContent = v;
+    Audio.click(); Game.save();
+    nameInput.blur();
+  });
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') nameSave.click(); });
+
+  document.getElementById('start-btn').addEventListener('click', () => {
+    if (Tutorial.active) Tutorial.finish();
+    Audio.init(); Audio.resume(); Audio.click();
+    const w = document.getElementById('welcome');
+    w.style.opacity = '0';
+    setTimeout(() => { w.style.display = 'none'; }, 400);
+    const s = Game.state;
+    if (s.inShift) Game.resumeShift();
+    else if (s.shiftDone) Game.nextDay();
+    else Game.startShift();
+  });
+  document.getElementById('tutorial-btn').addEventListener('click', () => {
+    Audio.init(); Audio.resume(); Audio.click();
+    Tutorial.start();
+  });
+
+  animate();
+  </script>
+</body>
+</html>
